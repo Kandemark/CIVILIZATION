@@ -1,0 +1,3 @@
+"""Cartographic styles"""
+
+# Module implementation

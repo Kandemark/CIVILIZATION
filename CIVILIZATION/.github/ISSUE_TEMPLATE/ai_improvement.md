@@ -1,0 +1,1 @@
+# AI improvement template

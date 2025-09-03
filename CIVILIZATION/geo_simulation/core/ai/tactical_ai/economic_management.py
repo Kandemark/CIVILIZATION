@@ -1,0 +1,3 @@
+"""Economic management"""
+
+# Module implementation

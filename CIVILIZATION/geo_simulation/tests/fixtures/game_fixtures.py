@@ -1,0 +1,3 @@
+"""Game fixtures"""
+
+# Module implementation

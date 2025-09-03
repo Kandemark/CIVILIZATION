@@ -1,0 +1,3 @@
+"""Entity fixtures"""
+
+# Module implementation

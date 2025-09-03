@@ -1,0 +1,3 @@
+"""Cultural traits"""
+
+# Module implementation

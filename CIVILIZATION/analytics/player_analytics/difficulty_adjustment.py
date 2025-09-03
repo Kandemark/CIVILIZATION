@@ -1,0 +1,3 @@
+"""Difficulty adjustment"""
+
+# Module implementation

@@ -1,0 +1,3 @@
+"""Demographic calculations"""
+
+# Module implementation

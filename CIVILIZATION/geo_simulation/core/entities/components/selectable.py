@@ -1,0 +1,3 @@
+"""Selectable component"""
+
+# Module implementation

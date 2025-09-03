@@ -1,0 +1,3 @@
+"""Military events"""
+
+# Module implementation

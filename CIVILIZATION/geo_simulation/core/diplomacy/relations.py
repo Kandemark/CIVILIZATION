@@ -1,0 +1,3 @@
+"""Bilateral relations"""
+
+# Module implementation

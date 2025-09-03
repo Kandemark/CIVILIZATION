@@ -1,0 +1,3 @@
+"""Style assets"""
+
+# Module implementation

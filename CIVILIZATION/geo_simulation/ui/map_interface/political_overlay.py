@@ -1,0 +1,3 @@
+"""Political overlay"""
+
+# Module implementation

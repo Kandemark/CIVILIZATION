@@ -1,0 +1,3 @@
+"""Rule validator"""
+
+# Module implementation

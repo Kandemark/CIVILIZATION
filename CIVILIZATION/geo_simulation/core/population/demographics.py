@@ -1,0 +1,3 @@
+"""Population composition"""
+
+# Module implementation

@@ -1,0 +1,3 @@
+"""Economy tests"""
+
+# Module implementation

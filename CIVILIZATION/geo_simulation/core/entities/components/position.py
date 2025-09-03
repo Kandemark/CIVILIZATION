@@ -1,0 +1,3 @@
+"""Position component"""
+
+# Module implementation

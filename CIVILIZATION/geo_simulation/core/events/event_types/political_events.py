@@ -1,0 +1,3 @@
+"""Political events"""
+
+# Module implementation

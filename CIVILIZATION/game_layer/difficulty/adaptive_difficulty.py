@@ -1,0 +1,3 @@
+"""Adaptive difficulty"""
+
+# Module implementation

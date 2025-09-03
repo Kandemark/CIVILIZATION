@@ -1,0 +1,3 @@
+"""Social events"""
+
+# Module implementation

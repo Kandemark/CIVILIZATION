@@ -1,0 +1,3 @@
+"""Useful decorators"""
+
+# Module implementation

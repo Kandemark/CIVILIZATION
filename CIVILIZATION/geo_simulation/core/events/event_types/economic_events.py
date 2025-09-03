@@ -1,0 +1,3 @@
+"""Economic events"""
+
+# Module implementation

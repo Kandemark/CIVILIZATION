@@ -1,0 +1,3 @@
+"""Military units"""
+
+# Module implementation

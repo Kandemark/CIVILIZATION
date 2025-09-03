@@ -1,0 +1,3 @@
+"""Event notifications"""
+
+# Module implementation

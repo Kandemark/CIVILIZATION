@@ -1,0 +1,3 @@
+"""Combat mechanics"""
+
+# Module implementation

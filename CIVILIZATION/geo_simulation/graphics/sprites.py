@@ -1,0 +1,3 @@
+"""Sprite management"""
+
+# Module implementation

@@ -1,0 +1,3 @@
+"""Economic resources"""
+
+# Module implementation

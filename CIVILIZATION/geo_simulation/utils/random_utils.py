@@ -1,0 +1,3 @@
+"""Random utilities"""
+
+# Module implementation

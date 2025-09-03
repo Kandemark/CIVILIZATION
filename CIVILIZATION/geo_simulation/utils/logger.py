@@ -1,0 +1,3 @@
+"""Logging utility"""
+
+# Module implementation

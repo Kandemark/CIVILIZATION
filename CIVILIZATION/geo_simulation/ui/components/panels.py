@@ -1,0 +1,3 @@
+"""Panel components"""
+
+# Module implementation

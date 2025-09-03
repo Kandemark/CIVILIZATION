@@ -1,0 +1,3 @@
+"""Dialog system"""
+
+# Module implementation

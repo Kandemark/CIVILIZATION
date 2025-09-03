@@ -1,0 +1,3 @@
+"""Mod validator"""
+
+# Module implementation

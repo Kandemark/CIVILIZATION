@@ -1,0 +1,3 @@
+"""Resource allocation"""
+
+# Module implementation

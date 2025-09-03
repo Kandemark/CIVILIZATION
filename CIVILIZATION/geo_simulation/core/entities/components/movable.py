@@ -1,0 +1,3 @@
+"""Movable component"""
+
+# Module implementation

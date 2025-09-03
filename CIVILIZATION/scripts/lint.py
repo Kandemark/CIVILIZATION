@@ -1,0 +1,3 @@
+"""Linting script"""
+
+# Module implementation

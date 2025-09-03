@@ -1,0 +1,3 @@
+"""Geometric operations"""
+
+# Module implementation

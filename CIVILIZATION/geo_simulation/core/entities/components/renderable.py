@@ -1,0 +1,3 @@
+"""Renderable component"""
+
+# Module implementation

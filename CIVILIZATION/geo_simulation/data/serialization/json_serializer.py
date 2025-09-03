@@ -1,0 +1,3 @@
+"""JSON serialization"""
+
+# Module implementation

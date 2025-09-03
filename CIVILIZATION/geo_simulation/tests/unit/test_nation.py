@@ -1,0 +1,3 @@
+"""Nation tests"""
+
+# Module implementation

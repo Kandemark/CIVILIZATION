@@ -1,0 +1,3 @@
+"""Diplomatic strategy"""
+
+# Module implementation

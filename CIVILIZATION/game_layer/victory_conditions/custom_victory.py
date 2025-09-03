@@ -1,0 +1,3 @@
+"""Custom victory"""
+
+# Module implementation

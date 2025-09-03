@@ -1,0 +1,3 @@
+"""Equilibrium finder"""
+
+# Module implementation

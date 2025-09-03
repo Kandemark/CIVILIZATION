@@ -1,0 +1,3 @@
+"""Random discoveries"""
+
+# Module implementation

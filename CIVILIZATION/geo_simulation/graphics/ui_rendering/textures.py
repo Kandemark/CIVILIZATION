@@ -1,0 +1,3 @@
+"""Texture management"""
+
+# Module implementation

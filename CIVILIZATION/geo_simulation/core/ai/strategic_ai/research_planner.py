@@ -1,0 +1,3 @@
+"""Research planning"""
+
+# Module implementation

@@ -1,0 +1,3 @@
+"""Demographic alerts"""
+
+# Module implementation

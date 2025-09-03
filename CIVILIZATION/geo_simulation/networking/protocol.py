@@ -1,0 +1,3 @@
+"""Network protocol"""
+
+# Module implementation

@@ -1,0 +1,3 @@
+"""Event view"""
+
+# Module implementation

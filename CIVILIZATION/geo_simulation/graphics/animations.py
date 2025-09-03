@@ -1,0 +1,3 @@
+"""Animation system"""
+
+# Module implementation

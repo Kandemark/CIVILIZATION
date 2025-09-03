@@ -1,0 +1,3 @@
+"""Color utilities"""
+
+# Module implementation
