@@ -1,0 +1,31 @@
+# Git ignore rules
+
+# ignore environment files
+.env
+.env.example
+
+#ignore py cache files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ipynb_checkpoints/
+.vscode/
+.idea/
+*.log
+*.sqlite3
+db.sqlite3
+*.db
+*.db-journal
+*.sqlite3-shm
+*.sqlite3-wal
+
+# ingnore system files
+
+# ignore virtual environment folders
+venv/
+env/
+.venv/
+ENV/
+env.bak/
+venv.bak/

@@ -1,0 +1,3 @@
+"""Custom scenario"""
+
+# Module implementation

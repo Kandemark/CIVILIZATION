@@ -1,0 +1,3 @@
+"""UI renderer"""
+
+# Module implementation

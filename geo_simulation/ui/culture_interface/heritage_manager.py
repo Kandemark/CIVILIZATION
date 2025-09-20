@@ -1,0 +1,3 @@
+"""Heritage manager"""
+
+# Module implementation

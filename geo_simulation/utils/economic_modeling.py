@@ -1,0 +1,3 @@
+"""Economic modeling"""
+
+# Module implementation

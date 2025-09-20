@@ -1,0 +1,3 @@
+"""Geometry utilities"""
+
+# Module implementation

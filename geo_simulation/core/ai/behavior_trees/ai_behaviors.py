@@ -1,0 +1,3 @@
+"""AI behaviors"""
+
+# Module implementation

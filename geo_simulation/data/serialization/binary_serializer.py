@@ -1,0 +1,3 @@
+"""Binary serialization"""
+
+# Module implementation

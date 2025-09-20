@@ -1,0 +1,3 @@
+"""Conflict resolution"""
+
+# Module implementation

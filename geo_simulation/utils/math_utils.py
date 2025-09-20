@@ -1,0 +1,3 @@
+"""Math utilities"""
+
+# Module implementation

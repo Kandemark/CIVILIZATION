@@ -1,0 +1,3 @@
+"""Behavior adaptation"""
+
+# Module implementation

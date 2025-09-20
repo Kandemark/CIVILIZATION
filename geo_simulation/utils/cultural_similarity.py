@@ -1,0 +1,3 @@
+"""Cultural similarity"""
+
+# Module implementation

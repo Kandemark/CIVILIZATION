@@ -1,0 +1,3 @@
+"""Particle effects"""
+
+# Module implementation

@@ -1,0 +1,3 @@
+"""Event response"""
+
+# Module implementation

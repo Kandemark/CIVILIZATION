@@ -1,0 +1,3 @@
+"""World fixtures"""
+
+# Module implementation

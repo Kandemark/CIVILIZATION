@@ -1,0 +1,3 @@
+"""Economy view"""
+
+# Module implementation

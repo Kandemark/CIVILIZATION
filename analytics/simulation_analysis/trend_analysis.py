@@ -1,0 +1,3 @@
+"""Trend analysis"""
+
+# Module implementation

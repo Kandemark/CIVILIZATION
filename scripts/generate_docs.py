@@ -1,0 +1,3 @@
+"""Documentation generation"""
+
+# Module implementation

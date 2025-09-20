@@ -1,0 +1,3 @@
+"""Game controller"""
+
+# Module implementation

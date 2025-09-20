@@ -1,0 +1,3 @@
+"""Camera system"""
+
+# Module implementation

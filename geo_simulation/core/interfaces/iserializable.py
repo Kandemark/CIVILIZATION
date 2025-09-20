@@ -1,0 +1,3 @@
+"""Serialization interface"""
+
+# Module implementation

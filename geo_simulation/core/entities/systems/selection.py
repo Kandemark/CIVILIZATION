@@ -1,0 +1,3 @@
+"""Selection system"""
+
+# Module implementation

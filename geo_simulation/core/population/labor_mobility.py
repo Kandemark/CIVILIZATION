@@ -1,0 +1,3 @@
+"""Workforce allocation"""
+
+# Module implementation

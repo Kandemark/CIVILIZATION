@@ -1,0 +1,3 @@
+"""Style manager"""
+
+# Module implementation

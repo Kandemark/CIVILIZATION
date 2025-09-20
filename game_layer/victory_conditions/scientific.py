@@ -1,0 +1,3 @@
+"""Scientific victory"""
+
+# Module implementation

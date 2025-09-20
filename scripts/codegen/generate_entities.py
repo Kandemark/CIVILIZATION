@@ -1,0 +1,3 @@
+"""Entity generator"""
+
+# Module implementation
