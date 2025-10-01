@@ -51,8 +51,7 @@ class StruggleSystem:
         self.resolved_struggles: List[PowerStruggle] = {}
         self.struggle_history: List[Dict] = []
     
-    def initiate_struggle(self, struggle_type: StruggleType, participants: Set[str],
-                         intensity: float, description: str) -> Optional[PowerStruggle]:
+    def initiate_struggle(self, struggle_type: StruggleType, participants: Set[str], intensity: float, description: str) -> Optional[PowerStruggle]:
         """Initiate a new power struggle"""
         if len(participants) < 2:
             return None
@@ -72,8 +71,7 @@ class StruggleSystem:
         logger.info(f"Power struggle initiated: {description} (Intensity: {intensity:.1f})")
         return struggle
     
-    def resolve_struggle(self, struggle_id: str, outcome: StruggleOutcome,
-                        winner: Optional[str] = None, concessions: Optional[Dict[str, float]] = None) -> bool:
+    def resolve_struggle(self, struggle_id: str, outcome: StruggleOutcome, winner: Optional[str] = None, concessions: Optional[Dict[str, float]] = None) -> bool:
         """Resolve a power struggle"""
         if struggle_id not in self.active_struggles:
             return False

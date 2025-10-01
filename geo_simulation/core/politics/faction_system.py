@@ -104,8 +104,7 @@ class FactionSystem:
                     similarity = 1.0 - (abs(i - j) / len(ideologies))
                     self.ideology_relationships[(ideo1, ideo2)] = similarity * 0.5 + 0.5
 
-    def create_faction(self, name: str, ideology: Ideology, 
-                      alignment: PoliticalAlignment) -> Faction:
+    def create_faction(self, name: str, ideology: Ideology, alignment: PoliticalAlignment) -> Faction:
         """Create a new political faction"""
         faction_id = f"faction_{len(self.factions) + 1}"
         faction = Faction(

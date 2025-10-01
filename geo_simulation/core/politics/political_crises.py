@@ -55,8 +55,7 @@ class CrisisSystem:
             crisis_type: 0.1 for crisis_type in CrisisType
         }
     
-    def trigger_crisis(self, crisis_type: CrisisType, severity: CrisisSeverity,
-                      description: str, duration_days: int = 30) -> Optional[PoliticalCrisis]:
+    def trigger_crisis(self, crisis_type: CrisisType, severity: CrisisSeverity, description: str, duration_days: int = 30) -> Optional[PoliticalCrisis]:
         """Trigger a new political crisis"""
         crisis_id = f"crisis_{len(self.active_crises) + len(self.resolved_crises) + 1}"
         
@@ -107,8 +106,7 @@ class CrisisSystem:
         for crisis_id in crises_to_resolve:
             self.resolve_crisis(crisis_id, success=False)
     
-    def calculate_crisis_risk(self, legitimacy: float, faction_stability: float,
-                            economic_health: float) -> Dict[CrisisType, float]:
+    def calculate_crisis_risk(self, legitimacy: float, faction_stability: float, economic_health: float) -> Dict[CrisisType, float]:
         """Calculate risk of different crisis types"""
         risks = {}
         
