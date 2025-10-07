@@ -24,21 +24,7 @@ A comprehensive framework for simulating military operations, logistics, and str
 
 ```bash
 pip install numpy pyyaml
+```
 
-
-
-This enhanced military simulation system includes:
-
-1. **Comprehensive Combat System**: With terrain, weather, and doctrine modifiers
-2. **Advanced Doctrine System**: Researchable doctrines with special abilities
-3. **Formation Management**: Various military formations with tactical advantages
-4. **Detailed Logistics**: Supply chain management and resource allocation
-5. **Technology Tree**: Research system for military advancements
-6. **Morale System**: Tracking unit morale and cohesion
-7. **Occupation Mechanics**: Territory control and resistance management
-8. **Rebellion System**: Internal conflict simulation
-9. **Recruitment System**: Unit training and reinforcement
-10. **War Exhaustion**: Tracking war weariness effects
-11. **Theater Warfare**: Multi-theater operation coordination
-
-The system is highly configurable through YAML files and includes extensive documentation. It's designed to be modular and extensible for various military simulation needs.
+- The system is highly configurable through YAML files and includes extensive documentation.
+- It's designed to be modular and extensible for various military simulation needs.
