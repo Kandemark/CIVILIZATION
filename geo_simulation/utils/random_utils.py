@@ -151,8 +151,7 @@ class RandomUtils:
         return x, y
     
     @staticmethod
-    def random_point_in_rectangle(min_x: float, min_y: float,
-                                 max_x: float, max_y: float) -> tuple[float, float]:
+    def random_point_in_rectangle(min_x: float, min_y: float, max_x: float, max_y: float) -> tuple[float, float]:
         """Generate random point within rectangle"""
         x = random.uniform(min_x, max_x)
         y = random.uniform(min_y, max_y)
