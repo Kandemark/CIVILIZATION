@@ -76,7 +76,7 @@ CIVILIZATION/
 └── Makefile            # Make build
 ```
 
-See `PROJECT_STRUCTURE.md` for complete structure documentation.
+See `docs/STRUCTURE.md` for complete structure documentation.
 
 ## 🔧 Installation
 
@@ -128,10 +128,13 @@ make
 
 ## 📚 Documentation
 
-- `PROJECT_STRUCTURE.md` - Complete structure documentation
+- `docs/STRUCTURE.md` - Complete structure documentation
 - `ARCHITECTURE.md` - Architecture overview
-- `PERFORMANCE_FEATURES.md` - Performance optimizations
-- `BUILD_INSTRUCTIONS.md` - Build guide
+- `docs/PERFORMANCE.md` - Performance optimizations
+- `docs/BUILD.md` - Build guide
+- `docs/FEATURES.md` - Creative freedom features
+- `docs/DEVELOPMENT.md` - Development guide
+- `ROADMAP.md` - Feature roadmap
 
 ## 🏆 Statistics
 
