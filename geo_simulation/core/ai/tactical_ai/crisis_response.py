@@ -1,3 +1,0 @@
-"""Crisis response"""
-
-# Module implementation

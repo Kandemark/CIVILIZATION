@@ -1,3 +1,0 @@
-"""Alliance formation"""
-
-# Module implementation

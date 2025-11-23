@@ -1,3 +1,0 @@
-"""Governance view"""
-
-# Module implementation

@@ -1,3 +1,0 @@
-"""Custom rules"""
-
-# Module implementation

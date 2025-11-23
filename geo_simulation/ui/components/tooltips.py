@@ -1,3 +1,0 @@
-"""Tooltip components"""
-
-# Module implementation

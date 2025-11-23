@@ -1,3 +1,0 @@
-"""Predictive modeling"""
-
-# Module implementation

@@ -1,3 +1,0 @@
-"""Policy system"""
-
-# Module implementation

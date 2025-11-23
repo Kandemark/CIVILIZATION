@@ -1,3 +1,0 @@
-"""Border visualization"""
-
-# Module implementation

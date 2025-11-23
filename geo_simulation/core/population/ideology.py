@@ -1,3 +1,0 @@
-"""Political beliefs"""
-
-# Module implementation

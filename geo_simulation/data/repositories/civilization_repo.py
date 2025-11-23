@@ -1,3 +1,0 @@
-"""Civilization repository"""
-
-# Module implementation

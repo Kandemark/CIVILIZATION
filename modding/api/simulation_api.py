@@ -1,3 +1,0 @@
-"""Simulation API"""
-
-# Module implementation

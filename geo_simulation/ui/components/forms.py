@@ -1,3 +1,0 @@
-"""Form components"""
-
-# Module implementation

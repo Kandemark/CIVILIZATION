@@ -1,3 +1,0 @@
-"""Futuristic abilities"""
-
-# Module implementation

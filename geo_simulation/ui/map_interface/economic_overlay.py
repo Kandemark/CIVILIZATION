@@ -1,3 +1,0 @@
-"""Economic overlay"""
-
-# Module implementation

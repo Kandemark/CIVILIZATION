@@ -1,3 +1,0 @@
-"""Population movement"""
-
-# Module implementation

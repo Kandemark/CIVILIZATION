@@ -1,3 +1,0 @@
-"""Population control"""
-
-# Module implementation

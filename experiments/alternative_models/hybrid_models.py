@@ -1,3 +1,0 @@
-"""Combined approaches"""
-
-# Module implementation

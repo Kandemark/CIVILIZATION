@@ -1,3 +1,0 @@
-"""Chat message"""
-
-# Module implementation

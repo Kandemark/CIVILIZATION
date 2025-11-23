@@ -1,3 +1,0 @@
-"""Demographic overlay"""
-
-# Module implementation

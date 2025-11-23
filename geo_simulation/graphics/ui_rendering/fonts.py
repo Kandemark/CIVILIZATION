@@ -1,3 +1,0 @@
-"""Font management"""
-
-# Module implementation

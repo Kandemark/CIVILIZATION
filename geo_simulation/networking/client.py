@@ -1,3 +1,0 @@
-"""Network client"""
-
-# Module implementation

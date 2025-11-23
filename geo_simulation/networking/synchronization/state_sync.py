@@ -1,3 +1,0 @@
-"""State synchronization"""
-
-# Module implementation

@@ -1,3 +1,0 @@
-"""Conquest victory"""
-
-# Module implementation

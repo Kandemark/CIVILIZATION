@@ -1,3 +1,0 @@
-"""Rule parser"""
-
-# Module implementation

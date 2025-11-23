@@ -1,3 +1,0 @@
-"""Happiness metrics"""
-
-# Module implementation

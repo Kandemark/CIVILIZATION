@@ -1,3 +1,0 @@
-"""Build script"""
-
-# Module implementation

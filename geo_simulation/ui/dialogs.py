@@ -1,3 +1,0 @@
-"""Dialog system"""
-
-# Module implementation

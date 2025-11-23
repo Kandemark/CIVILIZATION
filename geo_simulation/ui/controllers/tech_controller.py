@@ -1,3 +1,0 @@
-"""Tech controller"""
-
-# Module implementation

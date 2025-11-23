@@ -1,3 +1,0 @@
-"""Time manipulation"""
-
-# Module implementation

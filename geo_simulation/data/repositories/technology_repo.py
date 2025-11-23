@@ -1,3 +1,0 @@
-"""Technology repository"""
-
-# Module implementation

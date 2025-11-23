@@ -1,3 +1,0 @@
-"""Update interface"""
-
-# Module implementation

@@ -1,3 +1,0 @@
-"""UI themes"""
-
-# Module implementation

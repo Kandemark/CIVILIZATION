@@ -1,3 +1,0 @@
-"""Military view"""
-
-# Module implementation

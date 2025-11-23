@@ -1,3 +1,0 @@
-"""Agreement system"""
-
-# Module implementation

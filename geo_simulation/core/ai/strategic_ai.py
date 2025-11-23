@@ -1,3 +1,0 @@
-"""Strategic AI"""
-
-# Module implementation

@@ -1,3 +1,0 @@
-"""Lighting effects"""
-
-# Module implementation

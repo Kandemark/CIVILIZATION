@@ -1,3 +1,0 @@
-"""Packaging script"""
-
-# Module implementation

@@ -1,3 +1,0 @@
-"""Cultural victory"""
-
-# Module implementation

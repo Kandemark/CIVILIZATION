@@ -1,3 +1,0 @@
-"""Mod loader"""
-
-# Module implementation

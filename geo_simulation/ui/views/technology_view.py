@@ -1,3 +1,0 @@
-"""Technology view"""
-
-# Module implementation

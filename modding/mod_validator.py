@@ -1,3 +1,0 @@
-"""Mod validator"""
-
-# Module implementation

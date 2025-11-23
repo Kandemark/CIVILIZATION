@@ -1,3 +1,0 @@
-"""Experiments package"""
-
-# Module implementation

@@ -1,3 +1,0 @@
-"""Rule system"""
-
-# Module implementation

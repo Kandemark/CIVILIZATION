@@ -1,3 +1,0 @@
-"""Engagement metrics"""
-
-# Module implementation

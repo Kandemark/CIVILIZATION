@@ -1,3 +1,0 @@
-"""Map view"""
-
-# Module implementation

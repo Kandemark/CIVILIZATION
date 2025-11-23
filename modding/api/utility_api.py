@@ -1,3 +1,0 @@
-"""Utility API"""
-
-# Module implementation

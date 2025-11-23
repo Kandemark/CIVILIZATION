@@ -1,3 +1,0 @@
-"""Assimilation monitor"""
-
-# Module implementation

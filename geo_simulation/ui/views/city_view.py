@@ -1,3 +1,0 @@
-"""City view"""
-
-# Module implementation

@@ -1,3 +1,0 @@
-"""Network server"""
-
-# Module implementation

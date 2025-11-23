@@ -1,3 +1,0 @@
-"""UI API"""
-
-# Module implementation

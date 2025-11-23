@@ -1,3 +1,0 @@
-"""Cultural overlay"""
-
-# Module implementation

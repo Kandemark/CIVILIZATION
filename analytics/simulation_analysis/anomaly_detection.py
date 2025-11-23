@@ -1,3 +1,0 @@
-"""Anomaly detection"""
-
-# Module implementation

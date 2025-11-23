@@ -1,3 +1,0 @@
-"""Difficulty presets"""
-
-# Module implementation

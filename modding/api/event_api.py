@@ -1,3 +1,0 @@
-"""Event API"""
-
-# Module implementation

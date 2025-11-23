@@ -1,3 +1,0 @@
-"""Mod manager"""
-
-# Module implementation

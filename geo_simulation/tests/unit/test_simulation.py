@@ -1,3 +1,0 @@
-"""Simulation tests"""
-
-# Module implementation

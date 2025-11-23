@@ -1,3 +1,0 @@
-"""Nation view"""
-
-# Module implementation

@@ -1,3 +1,0 @@
-"""Mod dependencies"""
-
-# Module implementation

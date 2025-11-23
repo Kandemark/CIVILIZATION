@@ -1,3 +1,0 @@
-"""Event panel"""
-
-# Module implementation

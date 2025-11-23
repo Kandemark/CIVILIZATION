@@ -1,3 +1,0 @@
-"""Unit repository"""
-
-# Module implementation

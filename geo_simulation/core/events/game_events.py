@@ -1,3 +1,0 @@
-"""Game events"""
-
-# Module implementation

@@ -1,3 +1,0 @@
-"""Main renderer"""
-
-# Module implementation

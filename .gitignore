@@ -1,31 +1,45 @@
-# Git ignore rules
+# Build artifacts
+build/
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
 
-# ignore environment files
-.env
-.env.example
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
 
-#ignore py cache files
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Python (to be removed)
 __pycache__/
 *.py[cod]
 *$py.class
-.pytest_cache/
-.ipynb_checkpoints/
-.vscode/
-.idea/
-*.log
-*.sqlite3
-db.sqlite3
-*.db
-*.db-journal
-*.sqlite3-shm
-*.sqlite3-wal
-
-# ingnore system files
-
-# ignore virtual environment folders
+*.so
+.Python
 venv/
 env/
-.venv/
 ENV/
-env.bak/
-venv.bak/
+
+# Temporary files
+*.tmp
+*.log
+*.bak
+*.orig
+
+# OS
+Thumbs.db
+desktop.ini

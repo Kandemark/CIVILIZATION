@@ -1,3 +1,0 @@
-"""Color definitions"""
-
-# Module implementation

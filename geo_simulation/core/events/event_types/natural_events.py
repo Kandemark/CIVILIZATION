@@ -1,3 +1,0 @@
-"""Natural events"""
-
-# Module implementation

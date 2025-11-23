@@ -1,3 +1,0 @@
-"""UI manager"""
-
-# Module implementation

@@ -1,3 +1,0 @@
-"""Economic alerts"""
-
-# Module implementation

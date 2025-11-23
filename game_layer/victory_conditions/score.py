@@ -1,3 +1,0 @@
-"""Score victory"""
-
-# Module implementation

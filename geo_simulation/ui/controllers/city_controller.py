@@ -1,3 +1,0 @@
-"""City controller"""
-
-# Module implementation

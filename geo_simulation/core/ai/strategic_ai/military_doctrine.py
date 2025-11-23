@@ -1,3 +1,0 @@
-"""Military doctrine"""
-
-# Module implementation

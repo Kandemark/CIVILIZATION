@@ -1,3 +1,0 @@
-"""Rendering system"""
-
-# Module implementation

@@ -1,3 +1,0 @@
-"""Data exporter"""
-
-# Module implementation

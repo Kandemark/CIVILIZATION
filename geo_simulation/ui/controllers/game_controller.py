@@ -1,3 +1,0 @@
-"""Game controller"""
-
-# Module implementation

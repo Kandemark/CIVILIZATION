@@ -1,3 +1,0 @@
-"""Timeline slider"""
-
-# Module implementation

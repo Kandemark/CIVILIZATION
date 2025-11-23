@@ -1,3 +1,0 @@
-"""Rendering interface"""
-
-# Module implementation

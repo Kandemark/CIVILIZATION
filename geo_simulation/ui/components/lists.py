@@ -1,3 +1,0 @@
-"""List components"""
-
-# Module implementation

@@ -1,3 +1,0 @@
-"""Diplomacy view"""
-
-# Module implementation

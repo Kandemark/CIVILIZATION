@@ -1,3 +1,0 @@
-"""Network tests"""
-
-# Module implementation

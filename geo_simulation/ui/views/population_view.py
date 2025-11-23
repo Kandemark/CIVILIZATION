@@ -1,3 +1,0 @@
-"""Population view"""
-
-# Module implementation

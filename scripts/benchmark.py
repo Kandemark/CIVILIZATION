@@ -1,3 +1,0 @@
-"""Benchmarking script"""
-
-# Module implementation

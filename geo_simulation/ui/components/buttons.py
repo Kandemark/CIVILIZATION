@@ -1,3 +1,0 @@
-"""Button components"""
-
-# Module implementation

@@ -1,3 +1,0 @@
-"""Diplomatic victory"""
-
-# Module implementation

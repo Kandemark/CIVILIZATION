@@ -1,3 +1,0 @@
-"""Tactical AI"""
-
-# Module implementation
