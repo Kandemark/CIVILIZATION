@@ -59,16 +59,26 @@ set(UTILS_SOURCES
     src/utils/memory_pool.c
     src/utils/config.c
     src/utils/cache.c
+    src/utils/utils.c
+)
+
+set(SYSTEMS_SOURCES
+    src/systems/climate.c
+    src/systems/biomes.c
+    src/systems/geography.c
+    src/systems/events.c
+    src/systems/politics.c
 )
 
 set(MAIN_SOURCES
-    src/main.c
+    src/core/main.c
 )
 
 # Combine all sources
 set(ALL_SOURCES
     ${CORE_SOURCES}
     ${UTILS_SOURCES}
+    ${SYSTEMS_SOURCES}
     ${MAIN_SOURCES}
 )
 
@@ -78,7 +88,7 @@ add_executable(civilization ${ALL_SOURCES})
 # Compiler flags
 if(MSVC)
     target_compile_options(civilization PRIVATE /W4)
-else
+else()
     target_compile_options(civilization PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
@@ -87,26 +97,42 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     target_compile_definitions(civilization PRIVATE DEBUG=1)
     if(MSVC)
         target_compile_options(civilization PRIVATE /Od /Zi)
-    else
+    else()
         target_compile_options(civilization PRIVATE -g -O0)
     endif()
 endif()
 
-# Release flags
+# Release flags - OPTIMIZED
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     if(MSVC)
-        target_compile_options(civilization PRIVATE /O2 /GL)
+        # MSVC optimizations
+        target_compile_options(civilization PRIVATE 
+            /O2          # Maximum optimization
+            /GL          # Whole program optimization
+            /Oi          # Enable intrinsic functions
+            /Ot          # Favor fast code
+            /Oy          # Omit frame pointers
+            /fp:fast     # Fast floating point
+        )
         target_link_options(civilization PRIVATE /LTCG)
-    else
-        target_compile_options(civilization PRIVATE -O3 -DNDEBUG -flto -march=native)
+    else()
+        # GCC/Clang optimizations
+        target_compile_options(civilization PRIVATE 
+            -O3                      # Maximum optimization
+            -DNDEBUG                 # Disable assertions
+            -flto                    # Link-time optimization
+            -march=native            # Optimize for current CPU
+            -mtune=native            # Tune for current CPU
+            -fomit-frame-pointer     # Remove frame pointers
+            -fno-stack-protector     # Disable stack protection (performance)
+            -ffast-math              # Fast math operations
+            -funroll-loops           # Unroll loops
+            -ftree-vectorize         # Enable auto-vectorization
+            -fprefetch-loop-arrays   # Prefetch arrays in loops
+            -fno-signed-zeros        # Assume no signed zeros
+            -fno-trapping-math       # No trapping math
+        )
         target_link_options(civilization PRIVATE -flto)
-    endif()
-endif()
-
-# Performance optimizations
-if(CMAKE_BUILD_TYPE STREQUAL "Release")
-    if(NOT MSVC)
-        target_compile_options(civilization PRIVATE -ffast-math -funroll-loops)
     endif()
 endif()
 
@@ -126,7 +152,9 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
     message(STATUS "  - Link-time optimization (LTO)")
     message(STATUS "  - Native architecture optimizations")
     message(STATUS "  - Fast math optimizations")
+    message(STATUS "  - Auto-vectorization enabled")
+    message(STATUS "  - Loop unrolling enabled")
+    message(STATUS "  - Prefetch optimizations enabled")
 else()
     message(STATUS "Performance optimizations: DISABLED (Debug build)")
 endif()
-
