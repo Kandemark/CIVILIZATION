@@ -1,5 +1,6 @@
 /* utils.c - Implementation of utility functions */
-#include "utils.h"
+#include "../../include/utils/utils.h"
+#include <limits.h>
 
 /* Simple linear congruential generator */
 static unsigned int lcg_next(unsigned int *seed) {

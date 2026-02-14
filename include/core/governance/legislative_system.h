@@ -21,10 +21,18 @@ typedef enum {
   CIV_VOTE_METHOD_ABSOLUTE_AUTHORITY   /* Leader decides */
 } civ_voting_method_t;
 
+/* Session Type */
+typedef enum {
+  CIV_SESSION_LEGISLATIVE = 0,
+  CIV_SESSION_COURT,
+  CIV_SESSION_EXECUTIVE_COUNCIL
+} civ_session_type_t;
+
 /* Legislative Body */
 typedef struct {
   char id[STRING_SHORT_LEN];
   char name[STRING_MEDIUM_LEN];
+  civ_session_type_t session_type;
 
   /* Who is in this body? */
   char required_role[STRING_SHORT_LEN]; /* e.g., "Senator", "Councilman" */

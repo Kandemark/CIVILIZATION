@@ -1,6 +1,6 @@
 /**
  * @file noise.c
- * @brief Implementation of Perlin noise
+ * @brief Implementation of Perlin noise (2D and 3D)
  */
 
 #include "../../include/utils/noise.h"
@@ -57,45 +57,78 @@ static civ_float_t grad(int hash, civ_float_t x, civ_float_t y) {
   return ((h & 1) == 0 ? u : -u) + ((h & 2) == 0 ? v : -v);
 }
 
-civ_float_t civ_noise_perlin(civ_float_t x, civ_float_t y, uint32_t seed) {
-  /* Offset coordinates by seed to vary the noise */
-  x += (seed & 0xFFFF) * 0.1f;
-  y += ((seed >> 16) & 0xFFFF) * 0.1f;
+static civ_float_t grad3(int hash, civ_float_t x, civ_float_t y,
+                         civ_float_t z) {
+  int h = hash & 15;
+  civ_float_t u = h < 8 ? x : y;
+  civ_float_t v = h < 4 ? y : h == 12 || h == 14 ? x : z;
+  return ((h & 1) == 0 ? u : -u) + ((h & 2) == 0 ? v : -v);
+}
 
+civ_float_t civ_noise_perlin(civ_float_t x, civ_float_t y, uint32_t seed) {
+  x += (seed & 0xFFFF) * 0.131f;
+  y += ((seed >> 16) & 0xFFFF) * 0.173f;
   int X = (int)floor(x) & 255;
   int Y = (int)floor(y) & 255;
-
   x -= floor(x);
   y -= floor(y);
-
   civ_float_t u = fade(x);
   civ_float_t v = fade(y);
-
   int A = perm[X] + Y;
   int B = perm[X + 1] + Y;
-
   return lerp(
       v, lerp(u, grad(perm[A], x, y), grad(perm[B], x - 1, y)),
       lerp(u, grad(perm[A + 1], x, y - 1), grad(perm[B + 1], x - 1, y - 1)));
 }
 
+civ_float_t civ_noise_perlin3d(civ_float_t x, civ_float_t y, civ_float_t z,
+                               uint32_t seed) {
+  x += (seed & 0x3FFF) * 0.191f;
+  y += ((seed >> 14) & 0x3FFF) * 0.137f;
+  z += ((seed >> 28) & 0xF) * 0.121f;
+  int X = (int)floor(x) & 255, Y = (int)floor(y) & 255, Z = (int)floor(z) & 255;
+  x -= floor(x);
+  y -= floor(y);
+  z -= floor(z);
+  civ_float_t u = fade(x), v = fade(y), w = fade(z);
+  int A = perm[X] + Y, AA = perm[A] + Z, AB = perm[A + 1] + Z;
+  int B = perm[X + 1] + Y, BA = perm[B] + Z, BB = perm[B + 1] + Z;
+  return lerp(
+      w,
+      lerp(v, lerp(u, grad3(perm[AA], x, y, z), grad3(perm[BA], x - 1, y, z)),
+           lerp(u, grad3(perm[AB], x, y - 1, z),
+                grad3(perm[BB], x - 1, y - 1, z))),
+      lerp(v,
+           lerp(u, grad3(perm[AA + 1], x, y, z - 1),
+                grad3(perm[BA + 1], x - 1, y, z - 1)),
+           lerp(u, grad3(perm[AB + 1], x, y - 1, z - 1),
+                grad3(perm[BB + 1], x - 1, y - 1, z - 1))));
+}
+
 civ_float_t civ_noise_octave(civ_float_t x, civ_float_t y, int octaves,
                              civ_float_t persistence, civ_float_t scale,
                              uint32_t seed) {
-  civ_float_t total = 0;
-  civ_float_t frequency = scale;
-  civ_float_t amplitude = 1;
-  civ_float_t maxValue = 0; /* Used for normalizing result to 0.0 - 1.0 */
-
+  civ_float_t total = 0, frequency = scale, amplitude = 1, maxValue = 0;
   for (int i = 0; i < octaves; i++) {
     total += civ_noise_perlin(x * frequency, y * frequency, seed) * amplitude;
-
     maxValue += amplitude;
-
     amplitude *= persistence;
     frequency *= 2;
   }
+  return (total / maxValue) + 0.5f;
+}
 
-  /* Normalize to 0.0 - 1.0 range (approximate, since perlin returns -1 to 1) */
+civ_float_t civ_noise_octave3d(civ_float_t x, civ_float_t y, civ_float_t z,
+                               int octaves, civ_float_t persistence,
+                               civ_float_t scale, uint32_t seed) {
+  civ_float_t total = 0, frequency = scale, amplitude = 1, maxValue = 0;
+  for (int i = 0; i < octaves; i++) {
+    total +=
+        civ_noise_perlin3d(x * frequency, y * frequency, z * frequency, seed) *
+        amplitude;
+    maxValue += amplitude;
+    amplitude *= persistence;
+    frequency *= 2;
+  }
   return (total / maxValue) + 0.5f;
 }

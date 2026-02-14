@@ -10,7 +10,6 @@
 #include <stdio.h>
 #include <string.h>
 
-
 void civ_trigger_economic_crisis(civ_game_t *game) {
   if (!game)
     return;
@@ -28,7 +27,7 @@ void civ_trigger_economic_crisis(civ_game_t *game) {
   if (game->currency_manager) {
     for (size_t i = 0; i < game->currency_manager->currency_count; i++) {
       game->currency_manager->currencies[i].exchange_rate *= 0.7f; // 30% drop
-      game->currency_manager->currencies[i].inflation_rate +=
+      game->currency_manager->currencies[i].inflation_index +=
           0.05f; // +5% inflation
     }
   }

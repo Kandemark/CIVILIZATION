@@ -1,1 +1,0 @@
-# Cultural evolution documentation

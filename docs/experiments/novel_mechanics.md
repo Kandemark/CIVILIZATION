@@ -1,1 +1,0 @@
-# Novel mechanics documentation

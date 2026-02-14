@@ -1,9 +1,10 @@
 /* events.c - Simple random natural events handling */
-#include "events.h"
-#include "utils.h"
+#include "../../include/core/environment/events.h"
+#include "../../include/core/environment/cell.h"
+#include "../../include/utils/config.h"
+#include "../../include/utils/utils.h"
 #include <stdio.h>
 #include <stdlib.h>
-
 
 /* Helper to spawn a single event at (x,y) */
 static void spawn_event(EventsState *ev, EventType type, int x, int y,

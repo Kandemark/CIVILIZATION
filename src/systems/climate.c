@@ -1,6 +1,6 @@
 /* climate.c - Simple temperature, pressure, wind, and rainfall simulation */
-#include "climate.h"
-#include "utils.h"
+#include "../../include/core/environment/climate.h"
+#include "../../include/utils/utils.h"
 #include <math.h>
 
 /* Helper to compute latitude factor: 0 at equator, 1 at poles */

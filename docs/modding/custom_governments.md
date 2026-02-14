@@ -1,1 +1,0 @@
-# Custom governments guide

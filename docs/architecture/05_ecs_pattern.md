@@ -1,1 +1,0 @@
-# ECS pattern documentation

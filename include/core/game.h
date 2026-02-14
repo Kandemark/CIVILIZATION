@@ -31,7 +31,9 @@
 #include "military/units.h"
 #include "politics/politics.h"
 #include "population/population_manager.h"
+#include "profile.h"
 #include "simulation_engine/performance_optimizer.h"
+#include "simulation_engine/state_persistence.h"
 #include "simulation_engine/system_orchestrator.h"
 #include "simulation_engine/time_manager.h"
 #include "subunits/subunit.h"
@@ -42,6 +44,7 @@
 #include "world/map_view.h"
 #include "world/settlement_manager.h"
 #include "world/territory.h"
+#include "world/wonders.h"
 
 /* Game state enumeration */
 typedef enum {
@@ -139,6 +142,7 @@ typedef struct civ_game {
   civ_currency_manager_t *currency_manager;
   civ_trade_manager_t *trade_manager;
   civ_disaster_manager_t *disaster_manager;
+  civ_wonder_manager_t *wonder_manager;
 
   /* Performance and modularity systems */
   civ_system_orchestrator_t *system_orchestrator;
@@ -146,6 +150,7 @@ typedef struct civ_game {
   civ_config_manager_t *config_manager;
   civ_cache_t *cache;
   civ_memory_pool_manager_t *memory_pool;
+  civ_state_persistence_t *persistence;
 
   /* Nations */
   char **nations;
@@ -154,6 +159,11 @@ typedef struct civ_game {
 
   bool is_running;
   bool is_paused;
+
+  int32_t current_turn;
+
+  /* Player Profile */
+  civ_player_profile_t *current_profile;
 } civ_game_t;
 
 /* Function declarations */
@@ -200,13 +210,22 @@ void civ_game_resume(civ_game_t *game);
 void civ_game_shutdown(civ_game_t *game);
 
 /**
- * Save game to file
+ * End the current turn
  */
-civ_result_t civ_game_save(civ_game_t *game, const char *filename);
+civ_result_t civ_game_end_turn(civ_game_t *game);
 
 /**
- * Load game from file
+ * Save full game state (Map, Config, Players) to file
  */
+civ_result_t civ_game_save_state(civ_game_t *game, const char *filename);
+
+/**
+ * Load full game state from file
+ */
+civ_result_t civ_game_load_state(civ_game_t *game, const char *filename);
+
+/* Legacy/Basic wrapper (mapped to save_state) */
+civ_result_t civ_game_save(civ_game_t *game, const char *filename);
 civ_result_t civ_game_load(civ_game_t *game, const char *filename);
 
 /**

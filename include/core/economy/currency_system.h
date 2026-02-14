@@ -1,6 +1,6 @@
 /**
  * @file currency_system.h
- * @brief Currency and Exchange Rate System
+ * @brief Advanced Emergent Currency and National Macro-Economics
  */
 
 #ifndef CIVILIZATION_CURRENCY_SYSTEM_H
@@ -9,21 +9,33 @@
 #include "../../common.h"
 #include "../../types.h"
 
-/* Currency structure */
+/* Economic Cycle State */
+typedef enum {
+  CIV_ECON_CYCLE_GROWTH = 0,
+  CIV_ECON_CYCLE_PEAK,
+  CIV_ECON_CYCLE_RECESSION,
+  CIV_ECON_CYCLE_DEPRESSION,
+  CIV_ECON_CYCLE_RECOVERY
+} civ_economic_cycle_t;
+
+/* National Macro-State (The "Why" of the Economy) */
+typedef struct {
+  civ_float_t national_productivity; /* GDP output */
+  civ_float_t industrial_stability;  /* Resilience to shocks */
+  civ_float_t unemployment_index;    /* 0.0 to 1.0 */
+  civ_economic_cycle_t current_cycle;
+} civ_national_macro_state_t;
+
+/* Currency Unit */
 typedef struct {
   char id[STRING_SHORT_LEN];
   char name[STRING_MEDIUM_LEN];
-  char symbol[8];
-  char issuing_nation_id[STRING_SHORT_LEN];
 
-  civ_float_t
-      exchange_rate; /* Relative to a global standard (e.g., Gold = 1.0) */
-  civ_float_t inflation_rate; /* Annual inflation percentage */
-  civ_float_t volatility;     /* How much the rate fluctuates */
+  civ_float_t exchange_rate;    /* Relative to global standard */
+  civ_float_t inflation_index;  /* Consumer price index */
+  civ_float_t reserve_strength; /* Backing assets confidence */
 
-  int64_t circulation; /* Total money supply */
-
-  bool active;
+  civ_float_t circulation_volume;
 } civ_currency_t;
 
 /* Currency Manager */
@@ -31,27 +43,14 @@ typedef struct {
   civ_currency_t *currencies;
   size_t currency_count;
   size_t currency_capacity;
-
-  civ_float_t global_volatility_index;
 } civ_currency_manager_t;
 
 /* Functions */
-civ_currency_manager_t *civ_currency_manager_create(void);
-void civ_currency_manager_destroy(civ_currency_manager_t *manager);
+void civ_currency_init(civ_currency_t *currency, const char *name);
+void civ_currency_update_value(civ_currency_t *currency,
+                               const civ_national_macro_state_t *macro);
 
-civ_currency_t *civ_currency_create(const char *name, const char *symbol,
-                                    const char *nation_id);
-civ_result_t civ_currency_manager_add(civ_currency_manager_t *manager,
-                                      civ_currency_t *currency);
-civ_currency_t *civ_currency_manager_find(civ_currency_manager_t *manager,
-                                          const char *id);
-civ_currency_t *
-civ_currency_manager_find_by_nation(civ_currency_manager_t *manager,
-                                    const char *nation_id);
-
-void civ_currency_update_rates(civ_currency_manager_t *manager,
-                               civ_float_t time_delta);
-civ_float_t civ_currency_convert(const civ_currency_t *from,
-                                 const civ_currency_t *to, civ_float_t amount);
+civ_float_t civ_currency_get_exchange_power(const civ_currency_t *a,
+                                            const civ_currency_t *b);
 
 #endif /* CIVILIZATION_CURRENCY_SYSTEM_H */

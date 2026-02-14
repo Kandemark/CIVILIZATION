@@ -21,14 +21,14 @@ extern "C" {
 /** Minimum allowed map dimensions */
 #define CIV_MIN_MAP_WIDTH 16
 #define CIV_MIN_MAP_HEIGHT 16
-#define CIV_MAX_MAP_WIDTH 4096
+#define CIV_MAX_MAP_WIDTH 8192
 #define CIV_MAX_MAP_HEIGHT 4096
 
 /** Default generation values */
 #define CIV_DEFAULT_SEA_LEVEL 0.35f
 #define CIV_DEFAULT_LAND_RATIO 0.65f
-#define CIV_DEFAULT_MAP_WIDTH 100
-#define CIV_DEFAULT_MAP_HEIGHT 100
+#define CIV_DEFAULT_MAP_WIDTH 2048
+#define CIV_DEFAULT_MAP_HEIGHT 1024
 
 /** River generation limits */
 #define CIV_MAX_RIVERS_PER_MAP 50
@@ -64,6 +64,18 @@ typedef struct {
   bool has_river;    /**< True if tile contains a river */
   bool has_resource; /**< True if tile has natural resources */
 
+  /* Map view overlays */
+  civ_float_t political_influence; /**< 0.0 (none) to 1.0 (max) */
+  civ_float_t population_density;  /**< 0.0 (none) to 1.0 (max) */
+  civ_float_t cultural_influence;  /**< 0.0 (none) to 1.0 (max) */
+
+  /* Visibility flags (Fog of War) */
+  bool is_explored; /**< True if player has visited this tile at least once */
+  bool is_visible;  /**< True if player currently has line-of-sight */
+
+  /* Territory Ownership */
+  char owner_id[STRING_SHORT_LEN]; /**< ID of the nation/settlement that owns
+                                      this tile */
 } civ_map_tile_t;
 
 /**
@@ -220,6 +232,7 @@ civ_float_t civ_map_tile_distance(const civ_map_tile_t *a,
  */
 civ_result_t civ_map_generate(civ_map_t *map,
                               const civ_map_gen_params_t *params);
+civ_result_t civ_map_genesis(civ_map_t *map);
 
 /**
  * @brief Generate base terrain (elevation, moisture, temperature)
@@ -259,6 +272,15 @@ civ_result_t civ_map_generate_resources(civ_map_t *map);
  * @return Result indicating success or failure
  */
 civ_result_t civ_map_smooth_terrain(civ_map_t *map, int32_t iterations);
+
+/**
+ * @brief Generate premium map with plate tectonics and advanced features
+ * @param map Map to generate (must be initialized)
+ * @param params Generation parameters
+ * @return Result indicating success or failure
+ */
+civ_result_t civ_map_generate_premium(civ_map_t *map,
+                                      const civ_map_gen_params_t *params);
 
 /* ========================================================================== */
 /* Map Analysis & Statistics -------------------------------------------------

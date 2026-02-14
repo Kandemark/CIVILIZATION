@@ -1,0 +1,41 @@
+﻿
+=== Linking executable ===
+gcc -o build/civilization.exe build/obj/engine/window.o build/obj/engine/renderer.o build/obj/engine/input.o build/obj/engine/font.o build/obj/ui/sdl3_main.o build/obj/ui/button.o build/obj/ui/ui_common.o build/obj/ui/scene_manager.o build/obj/ui/scenes/scene_splash.o build/obj/ui/scenes/scene_profile_select.o build/obj/ui/scenes/scene_profile_create.o build/obj/ui/scenes/scene_main_menu.o build/obj/ui/scenes/scene_setup.o build/obj/ui/scenes/scene_spawn_select.o build/obj/ui/scenes/scene_game.o build/obj/core/game.o build/obj/core/profile.o build/obj/core/simulation_engine/time_manager.o build/obj/core/simulation_engine/system_orchestrator.o build/obj/core/simulation_engine/performance_optimizer.o build/obj/core/simulation_engine/event_dispatcher.o build/obj/core/simulation_engine/state_persistence.o build/obj/core/data/history_db.o build/obj/core/population/demographics.o build/obj/core/population/population_manager.o build/obj/core/population/population_vitality.o build/obj/core/population/race_system.o build/obj/core/economy/market.o build/obj/core/economy/currency_system.o build/obj/core/economy/trade_system.o build/obj/core/economy/resource_market.o build/obj/core/technology/innovation_system.o build/obj/core/military/units.o build/obj/core/military/combat.o build/obj/core/military/conquest.o build/obj/core/diplomacy/relations.o build/obj/core/diplomacy/international_organizations.o build/obj/core/diplomacy/unification_engine.o build/obj/core/events/event_manager.o build/obj/core/events/story_events.o build/obj/core/events/game_events.o build/obj/core/world/dynamic_borders.o build/obj/core/world/map_generator.o build/obj/core/world/map_view.o build/obj/core/world/territory.o build/obj/core/world/settlement_manager.o build/obj/core/governance/government.o build/obj/core/governance/custom_governance.o build/obj/core/governance/interaction.o build/obj/core/governance/conversation.o build/obj/core/governance/ministry.o build/obj/core/governance/notebook.o build/obj/core/governance/corruption.o build/obj/core/governance/societal_metrics.o build/obj/core/governance/rule_system.o build/obj/core/governance/governance_evolution.o build/obj/core/governance/legal_status.o build/obj/core/governance/legislative_system.o build/obj/core/governance/institution.o build/obj/core/governance/subdivision.o build/obj/core/environment/geography.o build/obj/core/environment/disaster_system.o build/obj/core/abstracts/soft_metrics.o build/obj/core/culture/cultural_identity.o build/obj/core/culture/writing_system.o build/obj/core/culture/cultural_diffusion.o build/obj/core/culture/cultural_assimilation.o build/obj/core/culture/language_evolution.o build/obj/core/culture/culture.o build/obj/core/culture/religion_system.o build/obj/core/visualization/cultural_display.o build/obj/core/ai/base_ai.o build/obj/core/ai/strategic_ai.o build/obj/core/ai/tactical_ai.o build/obj/core/ai/ai_system.o build/obj/core/politics/faction_system.o build/obj/core/politics/politics.o build/obj/core/politics/political_rivalry.o build/obj/core/subunits/subunit.o build/obj/core/knowledge_system.o build/obj/utils/common.o build/obj/utils/types.o build/obj/utils/memory_pool.o build/obj/utils/config.o build/obj/utils/cache.o build/obj/utils/utils.o build/obj/utils/noise.o build/obj/systems/climate.o build/obj/systems/biomes.o build/obj/systems/geography.o build/obj/systems/events.o build/obj/systems/politics.o build/obj/core/visuals/vexillology.o -LC:/SDL/SDL3-3.4.0/x86_64-w64-mingw32/lib -LC:/SDL/SDL3_ttf-3.2.2/x86_64-w64-mingw32/lib -lSDL3 -lSDL3_ttf -lm
+mingw32-make : C:/msys64/mingw64/bin/..
+/lib/gcc/x86_64-w64-mingw32/15.1.0/../.
+./../../x86_64-w64-mingw32/bin/ld.exe: 
+build/obj/core/game.o:game.c:(.text+0xe
+2): undefined reference to 
+`civ_wonder_manager_destroy'
+At line:1 char:1
++ mingw32-make release 2>&1 | Out-File 
+-FilePath build_error.txt -Encod ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpeci 
+   fied: (C:/msys64/mingw...anager_de  
+  stroy':String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCo 
+   mmandError
+ 
+C:/msys64/mingw64/bin/../lib/gcc/x86_64
+-w64-mingw32/15.1.0/../../../../x86_64-
+w64-mingw32/bin/ld.exe: build/obj/core/
+game.o:game.c:(.text+0x27a): undefined 
+reference to 
+`civ_wonder_manager_create'
+C:/msys64/mingw64/bin/../lib/gcc/x86_64
+-w64-mingw32/15.1.0/../../../../x86_64-
+w64-mingw32/bin/ld.exe: build/obj/core/
+game.o:game.c:(.text+0x61d): undefined 
+reference to 
+`civ_wonder_calculate_global_bonuses'
+C:/msys64/mingw64/bin/../lib/gcc/x86_64
+-w64-mingw32/15.1.0/../../../../x86_64-
+w64-mingw32/bin/ld.exe: build/obj/core/
+game.o:game.c:(.text+0xed2): undefined 
+reference to 
+`civ_wonder_manager_destroy'
+collect2.exe: error: ld returned 1 
+exit status
+mingw32-make: *** [Makefile:162: 
+build/civilization.exe] Error 1

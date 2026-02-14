@@ -1,8 +1,8 @@
 /* geography.c - Implementation of terrain, elevation, water, erosion, desert
  * formation */
-#include "geography.h"
-#include "climate.h"
-#include "utils.h"
+#include "../../include/core/environment/geography.h"
+#include "../../include/core/environment/climate.h"
+#include "../../include/utils/utils.h"
 #include <math.h>
 #include <stdlib.h>
 

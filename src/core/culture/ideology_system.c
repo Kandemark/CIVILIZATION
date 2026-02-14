@@ -159,3 +159,47 @@ civ_float_t civ_ideology_distance(const civ_ideology_t *a,
 
   return sqrt(dist_sq);
 }
+
+civ_ideology_t *civ_ideology_split(civ_ideology_system_t *system,
+                                   const civ_ideology_t *parent,
+                                   const char *name) {
+  if (!system || !parent || !name)
+    return NULL;
+
+  civ_ideology_t *child = civ_ideology_create(name);
+  if (child) {
+    strncpy(child->parent_ideology_id, parent->id, STRING_SHORT_LEN - 1);
+
+    /* Copy values with slight variation */
+    for (size_t i = 0; i < parent->value_count; i++) {
+      civ_float_t variant = (civ_float_t)((rand() % 100 - 50) * 0.01f);
+      civ_ideology_set_value(child, parent->values[i].name,
+                             parent->values[i].value + variant);
+    }
+  }
+  return child;
+}
+
+civ_result_t civ_ideology_drift(civ_ideology_t *ideology,
+                                civ_float_t corruption, civ_float_t stability) {
+  if (!ideology)
+    return (civ_result_t){CIV_ERROR_NULL_POINTER, "Null ideology"};
+
+  /* High corruption pushes towards radicalism or specific axes */
+  if (corruption > 0.5f) {
+    civ_ideology_evolve(ideology, "Authority", 0.05f * corruption);
+  }
+
+  /* Low stability causes random drift in values */
+  if (stability < 0.4f) {
+    for (size_t i = 0; i < ideology->value_count; i++) {
+      civ_float_t shift =
+          (civ_float_t)((rand() % 100 - 50) * 0.001f * (1.0f - stability));
+      ideology->values[i].value =
+          CLAMP(ideology->values[i].value + shift, -1.0f, 1.0f);
+    }
+  }
+
+  civ_ideology_update_metrics(ideology);
+  return (civ_result_t){CIV_OK, NULL};
+}

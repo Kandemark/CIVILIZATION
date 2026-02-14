@@ -1,1 +1,0 @@
-# Border dispute template

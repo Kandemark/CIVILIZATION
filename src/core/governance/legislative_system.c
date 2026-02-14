@@ -48,6 +48,7 @@ civ_legislative_body_t *civ_legislative_body_create(const char *name,
       memset(body->required_role, 0, STRING_SHORT_LEN);
 
     body->member_count = 0;
+    body->session_type = CIV_SESSION_LEGISLATIVE;
     body->voting_method = CIV_VOTE_METHOD_SIMPLE_MAJORITY;
     body->custom_threshold = 0.5f;
     body->in_session = true;

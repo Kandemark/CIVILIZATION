@@ -56,7 +56,7 @@ void world_initialize(World *w) {
   // Calculate biomes
   biomes_update(w);
   // Initial political ownership (none)
-  politics_update(&w->pol, &w->geo);
+  politics_update(&w->pol, &w->geo, &w->clim);
 }
 
 void world_update(World *w) {
@@ -74,7 +74,10 @@ void world_update(World *w) {
   // 3. Update events (earthquakes, storms, etc.)
   events_update(&w->ev, w->cells, &w->utils);
   // 4. Update political map (could be expanded later)
-  politics_update(&w->pol, &w->geo);
+  // Check if we need to init/assign land
+  politics_update(&w->pol, &w->geo, &w->clim);
+  // Evolve governments
+  politics_tick(&w->pol, 1.0f);
   // 5. Sync cell data from subsystem states
   for (int y = 0; y < WORLD_HEIGHT; ++y) {
     for (int x = 0; x < WORLD_WIDTH; ++x) {

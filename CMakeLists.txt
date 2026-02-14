@@ -1,18 +1,48 @@
 cmake_minimum_required(VERSION 3.10)
-project(Civilization VERSION 0.1.0 LANGUAGES C)
+project(Civilization VERSION 1.0.0 LANGUAGES C)
 
-# Set C standard
+# C standard
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
-# Build options
-option(BUILD_TESTS "Build test suite" OFF)
-option(BUILD_DOCS "Build documentation" OFF)
+# SDL3 paths
+set(SDL3_DIR "C:/SDL/SDL3-3.4.0/x86_64-w64-mingw32")
+set(SDL3_TTF_DIR "C:/SDL/SDL3_ttf-3.2.2/x86_64-w64-mingw32")
+
+set(SDL3_INCLUDE_DIR "${SDL3_DIR}/include/SDL3")
+set(SDL3_TTF_INCLUDE_DIR "${SDL3_TTF_DIR}/include/SDL3_ttf")
+set(SDL3_LIB_DIR "${SDL3_DIR}/lib")
+set(SDL3_TTF_LIB_DIR "${SDL3_TTF_DIR}/lib")
 
 # Include directories
-include_directories(${CMAKE_SOURCE_DIR}/include)
+include_directories(
+    ${CMAKE_SOURCE_DIR}/include
+    ${SDL3_INCLUDE_DIR}
+    ${SDL3_TTF_INCLUDE_DIR}
+)
 
-# Source files
+# Link directories
+link_directories(
+    ${SDL3_LIB_DIR}
+    ${SDL3_TTF_LIB_DIR}
+)
+
+# Engine sources
+set(ENGINE_SOURCES
+    src/engine/window.c
+    src/engine/renderer.c
+    src/engine/input.c
+    src/engine/font.c
+)
+
+# UI sources
+set(UI_SOURCES
+    src/ui/sdl3_main.c
+    src/ui/button.c
+    src/ui/ui_common.c
+)
+
+# Core game sources (preserved from original)
 set(CORE_SOURCES
     src/core/game.c
     src/core/simulation_engine/time_manager.c
@@ -51,8 +81,31 @@ set(CORE_SOURCES
     src/core/politics/faction_system.c
     src/core/politics/politics.c
     src/core/subunits/subunit.c
+    src/core/governance/interaction.c
+    src/core/governance/conversation.c
+    src/core/governance/ministry.c
+    src/core/governance/notebook.c
+    src/core/governance/corruption.c
+    src/core/governance/societal_metrics.c
+    src/core/culture/religion_system.c
+    src/core/governance/legal_status.c
+    src/core/population/race_system.c
+    src/core/population/population_vitality.c
+    src/core/diplomacy/international_organizations.c
+    src/core/diplomacy/unification_engine.c
+    src/core/economy/currency_system.c
+    src/core/economy/trade_system.c
+    src/core/economy/resource_market.c
+    src/core/environment/disaster_system.c
+    src/core/events/story_events.c
+    src/core/events/game_events.c
+    src/core/politics/political_rivalry.c
+    src/core/governance/rule_system.c
+    src/core/governance/governance_evolution.c
+    src/core/knowledge_system.c
 )
 
+# Utils sources
 set(UTILS_SOURCES
     src/utils/common.c
     src/utils/types.c
@@ -60,8 +113,11 @@ set(UTILS_SOURCES
     src/utils/config.c
     src/utils/cache.c
     src/utils/utils.c
+    src/core/visuals/vexillology.c
+    src/utils/noise.c
 )
 
+# Systems sources
 set(SYSTEMS_SOURCES
     src/systems/climate.c
     src/systems/biomes.c
@@ -70,20 +126,21 @@ set(SYSTEMS_SOURCES
     src/systems/politics.c
 )
 
-set(MAIN_SOURCES
-    src/core/main.c
-)
-
-# Combine all sources
-set(ALL_SOURCES
+# Create main executable
+add_executable(civilization
+    ${ENGINE_SOURCES}
+    ${UI_SOURCES}
     ${CORE_SOURCES}
     ${UTILS_SOURCES}
     ${SYSTEMS_SOURCES}
-    ${MAIN_SOURCES}
 )
 
-# Create executable
-add_executable(civilization ${ALL_SOURCES})
+# Link SDL3 libraries
+target_link_libraries(civilization PRIVATE
+    SDL3
+    SDL3_ttf
+    m  # Math library
+)
 
 # Compiler flags
 if(MSVC)
@@ -105,56 +162,39 @@ endif()
 # Release flags - OPTIMIZED
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     if(MSVC)
-        # MSVC optimizations
         target_compile_options(civilization PRIVATE 
-            /O2          # Maximum optimization
-            /GL          # Whole program optimization
-            /Oi          # Enable intrinsic functions
-            /Ot          # Favor fast code
-            /Oy          # Omit frame pointers
-            /fp:fast     # Fast floating point
+            /O2 /GL /Oi /Ot /Oy /fp:fast
         )
         target_link_options(civilization PRIVATE /LTCG)
     else()
-        # GCC/Clang optimizations
         target_compile_options(civilization PRIVATE 
-            -O3                      # Maximum optimization
-            -DNDEBUG                 # Disable assertions
-            -flto                    # Link-time optimization
-            -march=native            # Optimize for current CPU
-            -mtune=native            # Tune for current CPU
-            -fomit-frame-pointer     # Remove frame pointers
-            -fno-stack-protector     # Disable stack protection (performance)
-            -ffast-math              # Fast math operations
-            -funroll-loops           # Unroll loops
-            -ftree-vectorize         # Enable auto-vectorization
-            -fprefetch-loop-arrays   # Prefetch arrays in loops
-            -fno-signed-zeros        # Assume no signed zeros
-            -fno-trapping-math       # No trapping math
+            -O3 -DNDEBUG -flto -march=native
+            -mtune=native -fomit-frame-pointer
+            -ffast-math -funroll-loops
         )
         target_link_options(civilization PRIVATE -flto)
     endif()
 endif()
 
-# Installation
-install(TARGETS civilization
-    RUNTIME DESTINATION bin
-)
+# Copy SDL3 DLLs to build directory on Windows
+if(WIN32)
+    add_custom_command(TARGET civilization POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${SDL3_DIR}/bin/SDL3.dll"
+            $<TARGET_FILE_DIR:civilization>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${SDL3_TTF_DIR}/bin/SDL3_ttf.dll"
+            $<TARGET_FILE_DIR:civilization>
+        COMMENT "Copying SDL3 DLLs to build directory"
+    )
+endif()
 
 # Print build information
+message(STATUS "========================================")
+message(STATUS "CIVILIZATION - SDL3 Build Configuration")
+message(STATUS "========================================")
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "C compiler: ${CMAKE_C_COMPILER}")
-message(STATUS "Install prefix: ${CMAKE_INSTALL_PREFIX}")
-
-# Performance optimizations summary
-if(CMAKE_BUILD_TYPE STREQUAL "Release")
-    message(STATUS "Performance optimizations: ENABLED")
-    message(STATUS "  - Link-time optimization (LTO)")
-    message(STATUS "  - Native architecture optimizations")
-    message(STATUS "  - Fast math optimizations")
-    message(STATUS "  - Auto-vectorization enabled")
-    message(STATUS "  - Loop unrolling enabled")
-    message(STATUS "  - Prefetch optimizations enabled")
-else()
-    message(STATUS "Performance optimizations: DISABLED (Debug build)")
-endif()
+message(STATUS "SDL3 directory: ${SDL3_DIR}")
+message(STATUS "SDL3_ttf directory: ${SDL3_TTF_DIR}")
+message(STATUS "========================================")

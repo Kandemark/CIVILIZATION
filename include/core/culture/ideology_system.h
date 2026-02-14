@@ -41,6 +41,10 @@ typedef struct {
   size_t policy_count;
   size_t policy_capacity;
 
+  /* Evolution & Branching */
+  char parent_ideology_id[STRING_SHORT_LEN];
+  size_t sect_count;
+
   civ_float_t coherence;  /* How consistent the values are */
   civ_float_t radicalism; /* How extreme the values are */
 } civ_ideology_t;
@@ -68,6 +72,12 @@ civ_float_t civ_ideology_get_value(const civ_ideology_t *ideology,
 /* Evolution */
 civ_result_t civ_ideology_evolve(civ_ideology_t *ideology, const char *axis,
                                  civ_float_t shift);
+civ_ideology_t *civ_ideology_split(civ_ideology_system_t *system,
+                                   const civ_ideology_t *parent,
+                                   const char *name);
+civ_result_t civ_ideology_drift(civ_ideology_t *ideology,
+                                civ_float_t corruption, civ_float_t stability);
+
 void civ_ideology_update_metrics(
     civ_ideology_t *ideology); /* Recalculate coherence/radicalism */
 

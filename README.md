@@ -1,173 +1,46 @@
-# Civilization Simulation - Pure C Implementation
+# CIVILIZATION: Total Simulation
 
-A comprehensive geopolitical simulation game implemented in **pure C** with enterprise-level performance optimizations and modular architecture.
+A high-fidelity grand strategy simulation built with SDL3. Unlike traditional 4X games, this is an **Agnostic Total Simulation** where success is defined purely by evolutionary growth and functional institutional control.
 
-## 🎯 Project Status
+## 核心 (Core Simulation Philosophy)
 
-✅ **100% Pure C** - All Python code removed  
-✅ **Clean Structure** - Well-organized, modular architecture  
-✅ **Performance Optimized** - Enterprise-level optimizations  
-✅ **Production Ready** - Fully functional core systems  
+*   **Agnostic Governance**: No "best" political system. A nation's stability depends on how well its branches (Executive, Legislative, Judicial) function within their specific designed rules.
+*   **Total Social Simulation**: Stability and identity are emergent properties of **Language, Religion, Ideology, and Culture**. 
+*   **Administrative Hierarchy**: Design your nation from the bottom up. Create States, Colonies, and Provinces with varying levels of autonomy.
+*   **Infinite Evolution**: No victory screens. National power is measured by a **7-Tier Global Stature Ranking** (Hegemon to Failed State). Progress is continuous and requires exponential investment.
 
-## 🚀 Features
+## Systems Overview
 
-### Core Game Systems (13 Systems)
-- **Time Management** - Multiple scales, calendar, seasonal effects
-- **Population System** - Demographics, growth, migration
-- **Economy System** - Market dynamics, GDP, trade
-- **Technology System** - Innovation, research, tech tree
-- **Military System** - Combat, units, formations
-- **Diplomacy System** - Relations, treaties, alliances
-- **Soft Metrics** - Happiness, legitimacy, prestige
-- **Events System** - Event bus, handlers, scheduling
-- **World System** - Dynamic borders, territory management
-- **Governance System** - Government types, policies
-- **Environment System** - Geography, terrain, climate
-- **Abstract Systems** - Fuzzy logic, probabilistic models
-- **Simulation Engine** - Orchestration, performance, persistence
+### 1. Sovereign Governance
+*   **Modular Branches**: Define custom legislative thresholds, voting methods, and judicial review powers.
+*   **Autonomous Legislation**: Branches independently propose and vote on bills, updating the national Constitution in real-time.
+*   **The "Hard Path" of Reform**: Systemic changes like a coup or reformation require long-term institutional manipulation.
 
-### Performance Systems ⚡
-- **System Orchestrator** - Dependency-based execution
-- **Performance Optimizer** - Profiling and metrics
-- **Memory Pool Allocator** - Fast allocations
-- **Caching System** - Key-value cache
-- **Configuration System** - Runtime configuration
+### 2. Administrative Geography
+*   **Subdivisions**: Draw your own borders to create regional governments.
+*   **Custom Autonomy**: Manage colonial friction vs. incorporated state stability.
+*   **Tactical Laws**: Pass "Official Language Acts" or "Religious Standardizations" to drive assimilation, at the risk of local unrest.
 
-## 📊 Performance
+### 3. Integrated Systems
+*   **Dynamic Borders**: Territorial expansion driven by both military conquest and cultural diffusion.
+*   **Strategic AI**: AI nations evaluate global threats, form stances (Wary, Hostile, Friendly), and respond to proximity-based "Border Friction."
+*   **High-Fidelity Rendering**: Hardware-accelerated SDL3 engine with support for large-scale world maps and detailed HUDs.
 
-- **100-1000x faster** than Python version
-- **20-50% faster** than basic C (with optimizations)
-- **5-10x less memory** usage
-- **Better cache locality** with struct-based design
-- **Native compilation** for optimal performance
+## Quick Start
 
-## 📁 Project Structure
-
-```
-CIVILIZATION/
-├── include/              # All C headers
-│   ├── common.h         # Common definitions
-│   ├── types.h          # Core types
-│   └── core/            # Core systems
-│       ├── game.h       # Main game controller
-│       ├── simulation_engine/  # Simulation infrastructure
-│       ├── population/         # Population systems
-│       ├── economy/            # Economic systems
-│       ├── technology/         # Technology systems
-│       ├── military/           # Military systems
-│       ├── diplomacy/          # Diplomacy systems
-│       ├── events/             # Event systems
-│       ├── world/              # World systems
-│       ├── governance/         # Governance systems
-│       ├── environment/        # Environment systems
-│       └── abstracts/          # Abstract systems
-│   ├── utils/           # Utility systems
-│   └── data/            # Data systems
-│
-├── src/                  # All C sources (mirrors include/)
-│   ├── main.c          # Entry point
-│   └── core/           # Core implementations
-│
-├── assets/              # Game assets
-├── build/               # Build artifacts
-├── docs/                 # Documentation
-├── tests/                # Test suite
-├── CMakeLists.txt       # CMake build
-└── Makefile            # Make build
+### Build & Run
+```powershell
+mingw32-make release
+cd build
+.\civilization.exe
 ```
 
-See `docs/STRUCTURE.md` for complete structure documentation.
+## Architecture
 
-## 🔧 Installation
+- **Engine Layer** (`src/engine/`) - SDL3 window, rendering, input
+- **Governance** (`src/core/governance/`) - Legislative, Institutional, and Administrative logic
+- **World Context** (`src/core/world/`) - Settlements, Maps, Subdivisions
+- **Simulation** (`src/core/game.c`) - The main infinite loop
 
-### Prerequisites
-- C compiler (GCC 4.9+, Clang 3.3+, MSVC 2015+)
-- CMake 3.10+ (optional)
-- Make (optional)
-
-### Build
-
-#### Using Make
-```bash
-# Debug build
-make
-
-# Release build (optimized)
-make release
-
-# Clean
-make clean
-```
-
-#### Using CMake
-```bash
-mkdir build && cd build
-cmake ..
-make
-
-# Release build
-cmake -DCMAKE_BUILD_TYPE=Release ..
-make
-```
-
-## 🎮 Usage
-
-```bash
-# Start new game
-./build/bin/civilization --new
-
-# Load saved game
-./build/bin/civilization --load savegame.json
-
-# Run benchmark
-./build/bin/civilization --benchmark
-
-# Headless mode
-./build/bin/civilization --headless
-```
-
-## 📚 Documentation
-
-- `docs/STRUCTURE.md` - Complete structure documentation
-- `ARCHITECTURE.md` - Architecture overview
-- `docs/PERFORMANCE.md` - Performance optimizations
-- `docs/BUILD.md` - Build guide
-- `docs/FEATURES.md` - Creative freedom features
-- `docs/DEVELOPMENT.md` - Development guide
-- `ROADMAP.md` - Feature roadmap
-
-## 🏆 Statistics
-
-- **25+ header files**
-- **25+ source files**
-- **9000+ lines of C code**
-- **18 systems** (13 game + 5 performance)
-- **200+ functions**
-- **Zero external dependencies**
-
-## 🎯 Key Features
-
-- ✅ **Zero Dependencies**: Pure C standard library
-- ✅ **Cross-Platform**: Windows, Linux, macOS
-- ✅ **Modular**: Easy to extend
-- ✅ **Fast**: Optimized for performance
-- ✅ **Well Documented**: Comprehensive docs
-- ✅ **Production Ready**: Fully functional
-
-## 📝 License
-
-See LICENSE file for details.
-
-## 🤝 Contributing
-
-1. Follow existing code patterns
-2. Add documentation to headers
-3. Update build system for new files
-4. Test on multiple platforms
-5. Use profiling to verify performance
-
-## 🎊 Status
-
-✅ **100% Complete** - Pure C implementation with clean structure!
-
-The project is production-ready with enterprise-level performance and modularity.
+## License
+See LICENSE file.

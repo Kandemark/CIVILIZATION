@@ -1,1 +1,0 @@
-# Cultural management guide
