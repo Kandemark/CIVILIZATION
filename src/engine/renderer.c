@@ -180,67 +180,17 @@ void civ_render_map_context_destroy(civ_render_map_context_t *ctx) {
   free(ctx);
 }
 
-/* Helper: Get map tile color */
+/* Helper: Get map tile color (atlas style, political-first) */
 static uint32_t get_map_color(const civ_map_tile_t *tile) {
   if (!tile)
     return 0xFF010204;
 
-  float e = tile->elevation;
-  float t = tile->temperature;
-  float m = tile->moisture;
+  if (!tile->is_explored)
+    return 0xFF010204;
 
-  /* 1. Deep Ocean & Coastal Waters */
-  if (e < 0.52f) {
-    if (e < 0.35f)
-      return 0xFF030A1C; /* Abyssal */
-    if (e < 0.45f)
-      return 0xFF081A36; /* Deep */
-    return 0xFF12406A;   /* Coastal */
-  }
-
-  /* 2. Land Biomes (Elevation > 0.52) */
-  /* Ice Caps */
-  if (t < 0.15f)
-    return 0xFFF0F5FF;
-
-  /* Desert (High temp, low moisture) */
-  if (t > 0.65f && m < 0.22f)
-    return 0xFFD9B97E;
-
-  /* Savanna (High temp, medium moisture) */
-  if (t > 0.60f && m < 0.45f)
-    return 0xFFB5AD5D;
-
-  /* Mountains & High Hills */
-  if (e > 0.82f) {
-    if (e > 0.90f && t < 0.4f)
-      return 0xFFFFFFFF; /* Snowy peaks */
-    return 0xFF6A6560;   /* Stone */
-  }
-  if (e > 0.72f)
-    return 0xFF8A7E6A; /* High Hills */
-
-  /* Lush Jungles & Forests */
-  if (m > 0.75f) {
-    if (t > 0.6f)
-      return 0xFF0A3D12; /* Jungle */
-    return 0xFF144D1B;   /* Boreal Forest */
-  }
-
-  /* Woodlands */
-  if (m > 0.55f)
-    return 0xFF2A6B2F;
-
-  /* Grassland (Default) */
-  uint32_t color = 0xFF567E34;
-
-  /* Apply Visibility Shaders */
-  if (!tile->is_explored) {
-    return 0xFF010204; /* Black/Unexplored */
-  }
+  uint32_t color = (tile->land_use == CIV_LAND_USE_WATER) ? 0xFF0B2C4D : 0xFF4A7A41;
 
   if (!tile->is_visible) {
-    /* Shrouded: Darken significantly */
     uint8_t r = ((color >> 16) & 0xFF) / 3;
     uint8_t g = ((color >> 8) & 0xFF) / 3;
     uint8_t b = (color & 0xFF) / 3;
@@ -304,71 +254,12 @@ void civ_render_map(SDL_Renderer *renderer, civ_render_map_context_t *ctx,
       }
 
       uint32_t color = get_map_color(tile);
-
-      /* MASTERPIECE 2.0: Procedural Grain & Detail */
-      float detail_noise =
-          (float)civ_noise_perlin(fx * 50.0f, fy * 50.0f, map->seed + 50);
-      float detail_weight = 0.05f;
-
-      /* Biome-specific detail adjustments */
-      if (tile->land_use == CIV_LAND_USE_WATER) {
-        /* Water ripples */
-        detail_noise = (float)civ_noise_perlin(
-            fx * 20.0f, fy * 20.0f + SDL_GetTicks() * 0.001f, map->seed + 51);
-        detail_weight = 0.08f;
-      } else if (tile->land_use == CIV_LAND_USE_DESERT) {
-        /* Sand ripples */
-        detail_noise =
-            (float)civ_noise_perlin(fx * 30.0f, fy * 5.0f, map->seed + 52);
-        detail_weight = 0.12f;
-      }
-
-      /* Highlight Rivers */
+      /* Atlas rendering: flat readable colors, no atmospheric effects. */
       if (tile->has_river && tile->elevation >= map->sea_level) {
-        color = 0xFF2A8AE0; /* River blue */
+        color = 0xFF2A8AE0;
       }
 
-      /* MASTERPIECE SHADING KERNEL: Slope-based realistic lighting */
-      /* Wrap neighbor coordinates for seamless shading */
-      civ_map_tile_t *east =
-          civ_map_get_tile(map, (wx + 1) % ctx->map_width, wy);
-      civ_map_tile_t *south =
-          civ_map_get_tile(map, wx, (wy + 1) % ctx->map_height);
-
-      float dx = east ? (tile->elevation - east->elevation) : 0.0f;
-      float dy = south ? (tile->elevation - south->elevation) : 0.0f;
-
-      /* Composite Normal approximation */
-      float lit = 1.0f + (dx + dy) * 12.0f; /* High contrast slope lighting */
-      lit += detail_noise * detail_weight;  /* Add procedural micro-shading */
-      lit = fmaxf(0.6f, fminf(1.4f, lit)); /* Expanded stable range for drama */
-
-      /* MASTERPIECE 2.0: Atmospheric Cloud Shadows */
-      float cloud_x = fx * 0.02f + SDL_GetTicks() * 0.00005f;
-      float cloud_y = fy * 0.02f + SDL_GetTicks() * 0.00003f;
-      float clouds = (float)civ_noise_perlin(cloud_x, cloud_y, map->seed + 99);
-      if (clouds > 0.4f) {
-        lit *= (1.0f - (clouds - 0.4f) * 0.5f); /* Subtle darken for clouds */
-      }
-
-      /* Coastal Highlight (Foam) */
-      if (tile->elevation >= 0.52f && tile->elevation < 0.54f) {
-        lit *= 1.25f;
-      }
-
-      uint8_t r = (uint8_t)(((color >> 16) & 0xFF) * lit);
-      uint8_t g = (uint8_t)(((color >> 8) & 0xFF) * lit);
-      uint8_t b = (uint8_t)((color & 0xFF) * lit);
-
-      /* Resource "Glimmer" Overlay */
-      if (tile->has_resource) {
-        float pulse = (sinf(SDL_GetTicks() * 0.005f + wx + wy) * 0.5f + 0.5f);
-        r = (uint8_t)fminf(255, r + 50 * pulse);
-        g = (uint8_t)fminf(255, g + 40 * pulse);
-        b = (uint8_t)fmaxf(0, b - 20 * pulse);
-      }
-
-      row[x] = 0xFF000000 | (r << 16) | (g << 8) | b;
+      row[x] = color;
     }
   }
 

@@ -40,6 +40,7 @@ set(UI_SOURCES
     src/ui/sdl3_main.c
     src/ui/button.c
     src/ui/ui_common.c
+    src/ui/app_controller.c
     src/ui/scene_manager.c
     src/ui/scenes/scene_splash.c
     src/ui/scenes/scene_profile_select.c
