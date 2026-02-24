@@ -33,7 +33,7 @@ typedef struct {
 } civ_map_view_t;
 
 /* Map view manager */
-typedef struct {
+typedef struct civ_map_view_manager {
     civ_map_view_t* views;
     size_t view_count;
     civ_map_view_type_t current_view;

@@ -31,7 +31,6 @@
 #include "military/units.h"
 #include "politics/politics.h"
 #include "population/population_manager.h"
-#include "profile.h"
 #include "simulation_engine/performance_optimizer.h"
 #include "simulation_engine/state_persistence.h"
 #include "simulation_engine/system_orchestrator.h"
@@ -41,10 +40,14 @@
 #include "visualization/cultural_display.h"
 #include "world/dynamic_borders.h"
 #include "world/map_generator.h"
-#include "world/map_view.h"
 #include "world/settlement_manager.h"
 #include "world/territory.h"
 #include "world/wonders.h"
+
+struct civ_map_view_manager;
+struct civ_player_profile;
+typedef struct civ_map_view_manager civ_map_view_manager_t;
+typedef struct civ_player_profile civ_player_profile_t;
 
 /* Game state enumeration */
 typedef enum {

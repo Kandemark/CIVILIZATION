@@ -4,6 +4,8 @@
 #include "../../include/core/data/history_db.h"
 #include "../../include/core/diplomacy/relations.h"
 #include "../../include/core/military/combat.h"
+#include "../../include/core/profile.h"
+#include "../../include/core/world/map_view.h"
 #include "../../include/core/technology/innovation_system.h"
 #include "../../include/utils/config.h"
 #include "../../include/utils/memory_pool.h"

@@ -19,7 +19,7 @@ extern "C" {
 #define CIV_PROFILE_ID_MAX 32
 #define CIV_PROFILE_PATH_MAX 64
 
-typedef struct {
+typedef struct civ_player_profile {
   char name[CIV_PROFILE_NAME_MAX];
   char id[CIV_PROFILE_ID_MAX]; // UUID or sanitized name
   uint64_t created_at;

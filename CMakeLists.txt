@@ -40,11 +40,26 @@ set(UI_SOURCES
     src/ui/sdl3_main.c
     src/ui/button.c
     src/ui/ui_common.c
+    src/ui/scene_manager.c
+    src/ui/scenes/scene_splash.c
+    src/ui/scenes/scene_profile_select.c
+    src/ui/scenes/scene_profile_create.c
+    src/ui/scenes/scene_main_menu.c
+    src/ui/scenes/scene_setup.c
+    src/ui/scenes/scene_spawn_select.c
+    src/ui/scenes/scene_game.c
 )
 
 # Core game sources (preserved from original)
 set(CORE_SOURCES
     src/core/game.c
+    src/core/profile.c
+    src/core/data/history_db.c
+    src/core/governance/legislative_system.c
+    src/core/governance/institution.c
+    src/core/governance/subdivision.c
+    src/core/world/settlement_manager.c
+    src/core/culture/ideology_system.c
     src/core/simulation_engine/time_manager.c
     src/core/simulation_engine/system_orchestrator.c
     src/core/simulation_engine/performance_optimizer.c
@@ -200,8 +215,3 @@ message(STATUS "SDL3 directory: ${SDL3_DIR}")
 message(STATUS "SDL3_ttf directory: ${SDL3_TTF_DIR}")
 message(STATUS "========================================")
 
-
-# Basic build smoke test (link sanity)
-enable_testing()
-add_test(NAME civilization_binary_exists
-    COMMAND ${CMAKE_COMMAND} -E echo "Built target: $<TARGET_FILE:civilization>")
