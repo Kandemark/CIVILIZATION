@@ -25,6 +25,7 @@ extern "C" {
 #define CIV_MAX_MAP_HEIGHT 4096
 
 /** Default generation values */
+#define CIV_GLOBAL_MAP_SEED 0xC1A17A5u
 #define CIV_DEFAULT_SEA_LEVEL 0.35f
 #define CIV_DEFAULT_LAND_RATIO 0.65f
 #define CIV_DEFAULT_MAP_WIDTH 2048

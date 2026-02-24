@@ -24,6 +24,7 @@ A high-fidelity grand strategy simulation built with SDL3. Unlike traditional 4X
 *   **Tactical Laws**: Pass "Official Language Acts" or "Religious Standardizations" to drive assimilation, at the risk of local unrest.
 
 ### 3. Integrated Systems
+*   **Global Atlas Basemap**: The world uses one deterministic atlas-style baseline (non-Earth), focused on land/water/polar layout so political shifts remain the primary visual signal.
 *   **Dynamic Borders**: Territorial expansion driven by both military conquest and cultural diffusion.
 *   **Strategic AI**: AI nations evaluate global threats, form stances (Wary, Hostile, Friendly), and respond to proximity-based "Border Friction."
 *   **High-Fidelity Rendering**: Hardware-accelerated SDL3 engine with support for large-scale world maps and detailed HUDs.
