@@ -4,6 +4,8 @@
 #include "../../include/core/data/history_db.h"
 #include "../../include/core/diplomacy/relations.h"
 #include "../../include/core/military/combat.h"
+#include "../../include/core/profile.h"
+#include "../../include/core/world/map_view.h"
 #include "../../include/core/technology/innovation_system.h"
 #include "../../include/utils/config.h"
 #include "../../include/utils/memory_pool.h"
@@ -76,8 +78,8 @@ civ_result_t civ_game_initialize(civ_game_t *game,
   // Initialize Event Manager
   game->event_manager = civ_event_manager_create();
 
-  // Initialize World Map with random seed
-  uint32_t seed = (uint32_t)time(NULL);
+  // Initialize deterministic global atlas map
+  uint32_t seed = CIV_GLOBAL_MAP_SEED;
   game->world_map =
       civ_map_create(CIV_DEFAULT_MAP_WIDTH, CIV_DEFAULT_MAP_HEIGHT, seed);
   if (game->world_map) {

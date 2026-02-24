@@ -19,7 +19,7 @@ extern "C" {
 #define CIV_PROFILE_ID_MAX 32
 #define CIV_PROFILE_PATH_MAX 64
 
-typedef struct {
+typedef struct civ_player_profile {
   char name[CIV_PROFILE_NAME_MAX];
   char id[CIV_PROFILE_ID_MAX]; // UUID or sanitized name
   uint64_t created_at;
@@ -53,6 +53,18 @@ bool civ_profile_save(civ_player_profile_t *profile);
  * @return Loaded profile or NULL
  */
 civ_player_profile_t *civ_profile_load(const char *id);
+
+/**
+ * Build a canonical save path for a profile and slot name.
+ * Example slot names: "autosave", "campaign_alpha".
+ */
+bool civ_profile_get_save_path(const char *profile_id, const char *slot_name,
+                               char *out_path, size_t out_path_size);
+
+/**
+ * List save slots for a profile (without .civ extension).
+ */
+int civ_profile_list_saves(const char *profile_id, char ***out_saves);
 
 /**
  * List available profiles

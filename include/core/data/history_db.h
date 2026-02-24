@@ -38,6 +38,7 @@ typedef struct {
   size_t event_count;
   size_t capacity;
   char db_path[256];
+  uint32_t format_version;
 } civ_journal_t;
 
 /* Robust Journal Interface */
@@ -49,5 +50,9 @@ civ_result_t civ_journal_log(civ_journal_t *j, civ_journal_event_type_t type,
                              size_t size);
 civ_result_t civ_journal_flush(civ_journal_t *j);
 civ_result_t civ_journal_load(civ_journal_t *j, const char *path);
+
+/* Query helpers */
+size_t civ_journal_count_by_type(const civ_journal_t *j,
+                                 civ_journal_event_type_t type);
 
 #endif /* CIVILIZATION_HISTORY_DB_H */

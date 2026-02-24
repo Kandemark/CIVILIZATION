@@ -797,8 +797,8 @@ static void render(SDL_Renderer *renderer, int win_w, int win_h,
 
     char buf[128];
     sprintf(buf,
-            "PLANETARY POSITION: %.2f%c | %.2f%c    [CIVILIZATION ENGINE 18.5 "
-            "STABILIZED]",
+            "ATLAS POSITION: %.2f%c | %.2f%c    [POLITICAL ATLAS MODE "
+            "ACTIVE]",
             fabsf(lat), lat >= 0 ? 'N' : 'S', fabsf(lon), lon >= 0 ? 'E' : 'W');
 
     civ_font_render_aligned(renderer, font_hud, buf, 20, 0, win_w - 40, 40,
