@@ -73,6 +73,7 @@ set(CORE_SOURCES
     src/core/world/map_generator.c
     src/core/world/map_view.c
     src/core/world/territory.c
+    src/core/world/wonders.c
     src/core/visualization/cultural_display.c
     src/core/ai/base_ai.c
     src/core/ai/strategic_ai.c
@@ -198,3 +199,9 @@ message(STATUS "C compiler: ${CMAKE_C_COMPILER}")
 message(STATUS "SDL3 directory: ${SDL3_DIR}")
 message(STATUS "SDL3_ttf directory: ${SDL3_TTF_DIR}")
 message(STATUS "========================================")
+
+
+# Basic build smoke test (link sanity)
+enable_testing()
+add_test(NAME civilization_binary_exists
+    COMMAND ${CMAKE_COMMAND} -E echo "Built target: $<TARGET_FILE:civilization>")

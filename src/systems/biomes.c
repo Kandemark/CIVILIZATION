@@ -47,7 +47,7 @@ void biomes_update(World *w) {
         cell->terrain = TERRAIN_HILLS;
         // Hills can have biomes, but for now strict type
         // In improved version, we might want HILL_FOREST etc.
-        // But per definition this overrides.
+        // By definition, this overrides biome classification.
         continue;
       }
 

@@ -4,10 +4,12 @@ A high-fidelity grand strategy simulation built with SDL3. Unlike traditional 4X
 
 ## 核心 (Core Simulation Philosophy)
 
-*   **Agnostic Governance**: No "best" political system. A nation's stability depends on how well its branches (Executive, Legislative, Judicial) function within their specific designed rules.
+*   **Agnostic Governance**: No "best" political system. A nation's stability depends on how well its branches (Executive, Legislative, Judicial) function within their own evolving rules and institutions.
 *   **Total Social Simulation**: Stability and identity are emergent properties of **Language, Religion, Ideology, and Culture**. 
 *   **Administrative Hierarchy**: Design your nation from the bottom up. Create States, Colonies, and Provinces with varying levels of autonomy.
 *   **Infinite Evolution**: No victory screens. National power is measured by a **7-Tier Global Stature Ranking** (Hegemon to Failed State). Progress is continuous and requires exponential investment.
+*   **Dynamic Evolution (No Scripted End-State)**: The simulation is intentionally unscripted—player and AI decisions continuously reshape institutions, borders, and social systems without a fixed scenario endpoint.
+*   **Index-Based Progression**: Systems such as technology are tracked as progression indices that represent capability/efficiency growth, not a hard-capped predefined ladder.
 
 ## Systems Overview
 
