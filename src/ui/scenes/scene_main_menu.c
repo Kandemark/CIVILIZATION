@@ -26,26 +26,21 @@ static civ_button_t btn_logout;
 static civ_button_t btn_exit;
 
 static void init(void) {
-  printf("Initializing Main Menu Scene\n");
   font_title = civ_font_load_system("Segoe UI", 64);
   font_profile = civ_font_load_system("Segoe UI", 20);
   font_button = civ_font_load_system("Segoe UI", 28);
 
-  if (!font_title || !font_profile || !font_button) {
-    printf("Warning: Some fonts failed to load in Main Menu\n");
-  }
-
   btn_continue = civ_button_create(30, 0, 0, 300, 50, "CONTINUE");
   btn_new_game = civ_button_create(31, 0, 0, 300, 50, "NEW GAME");
-  btn_load_game = civ_button_create(32, 0, 0, 300, 50, "LOAD GAME");
+  btn_load_game = civ_button_create(32, 0, 0, 300, 50, "LOAD SLOT");
   btn_logout = civ_button_create(33, 0, 0, 300, 50, "SWITCH PROFILE");
   btn_exit = civ_button_create(34, 0, 0, 300, 50, "EXIT");
 
-  /* Logout button style */
   btn_logout.color = 0x555555;
 }
 
 static void update(civ_game_t *game, civ_input_state_t *input) {
+  (void)game;
   if (input->esc_pressed) {
     civ_scene_manager_switch(SCENE_PROFILE_SELECT);
   }
@@ -53,27 +48,21 @@ static void update(civ_game_t *game, civ_input_state_t *input) {
 
 static void render(SDL_Renderer *renderer, int win_w, int win_h,
                    civ_game_t *game, civ_input_state_t *input) {
-  /* 1. Background atmospheric deep blue */
   civ_render_rect_filled(renderer, 0, 0, win_w, win_h, CIV_COLOR_BG_DARK);
-
-  /* Add a subtle gradient or "glow" from the bottom left */
   civ_render_rect_filled_alpha(renderer, 0, win_h - 400, 600, 400,
                                CIV_COLOR_GLOW, 40);
 
-  /* 2. Side Panel Glassmorphism */
   int panel_w = 340;
   civ_render_rect_filled_alpha(renderer, 0, 0, panel_w, win_h,
                                CIV_COLOR_BG_MEDIUM, 180);
   civ_render_line(renderer, panel_w, 0, panel_w, win_h, 0x1A2A3A);
 
-  /* 3. Title (Top of Panel) */
   if (font_title) {
     civ_font_render_aligned(renderer, font_title, "CIVILIZATION", 40, 60,
                             panel_w - 80, 60, CIV_COLOR_PRIMARY, CIV_ALIGN_LEFT,
                             CIV_VALIGN_MIDDLE);
   }
 
-  /* 4. Profile Section (Bottom of Panel) */
   if (font_profile && game->current_profile) {
     civ_render_rect_filled_alpha(renderer, 20, win_h - 80, panel_w - 40, 60,
                                  0x0A1428, 120);
@@ -84,7 +73,6 @@ static void render(SDL_Renderer *renderer, int win_w, int win_h,
                             CIV_ALIGN_LEFT, CIV_VALIGN_MIDDLE);
   }
 
-  /* 5. Menu Buttons */
   int menu_x = 20;
   int menu_y = 220;
   int gap = 12;
@@ -116,30 +104,36 @@ static void render(SDL_Renderer *renderer, int win_w, int win_h,
   btn_exit.w = btn_w;
   btn_exit.h = btn_h;
 
-  // Mocking continue availability
   btn_continue.enabled = false;
-
-  if (civ_button_render(renderer, font_button, &btn_continue, input)) {
-    // Continue logic
-  }
+  civ_button_render(renderer, font_button, &btn_continue, input);
 
   if (civ_button_render(renderer, font_button, &btn_new_game, input)) {
-    civ_scene_manager_switch(SCENE_SETUP); // Setup is World Gen
+    civ_scene_manager_switch(SCENE_SETUP);
   }
 
   if (civ_button_render(renderer, font_button, &btn_load_game, input)) {
     if (game->current_profile) {
-      char save_path[256];
-      snprintf(save_path, sizeof(save_path), "%s.civ",
-               game->current_profile->name);
-      civ_result_t res = civ_game_load(game, save_path);
-      if (res.error == CIV_OK) {
-        printf("Game state restored for %s. Transitioning to orbital view.\n",
-               game->current_profile->name);
-        civ_scene_manager_switch(SCENE_GAME);
+      char **save_slots = NULL;
+      int save_count =
+          civ_profile_list_saves(game->current_profile->id, &save_slots);
+
+      if (save_count > 0) {
+        char save_path[256];
+        if (civ_profile_get_save_path(game->current_profile->id, save_slots[0],
+                                      save_path, sizeof(save_path))) {
+          civ_result_t res = civ_game_load(game, save_path);
+          if (res.error == CIV_OK) {
+            printf("Loaded slot '%s' for %s. Entering game.\n", save_slots[0],
+                   game->current_profile->name);
+            civ_scene_manager_switch(SCENE_GAME);
+          } else {
+            printf("Failed to load game: %s\n", res.message);
+          }
+        }
       } else {
-        printf("Failed to load game: %s\n", res.message);
+        printf("No save slots found for %s\n", game->current_profile->name);
       }
+      civ_profile_free_list(save_slots, save_count);
     }
   }
 

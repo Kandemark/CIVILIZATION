@@ -55,6 +55,18 @@ bool civ_profile_save(civ_player_profile_t *profile);
 civ_player_profile_t *civ_profile_load(const char *id);
 
 /**
+ * Build a canonical save path for a profile and slot name.
+ * Example slot names: "autosave", "campaign_alpha".
+ */
+bool civ_profile_get_save_path(const char *profile_id, const char *slot_name,
+                               char *out_path, size_t out_path_size);
+
+/**
+ * List save slots for a profile (without .civ extension).
+ */
+int civ_profile_list_saves(const char *profile_id, char ***out_saves);
+
+/**
  * List available profiles
  * @param out_profiles Pointer to array of strings (allocated)
  * @return Number of profiles found
