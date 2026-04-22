@@ -7,6 +7,7 @@
 #include "display/theme.h"
 #include "engine/font.h"
 #include "engine/renderer.h"
+#include "ui/confirm_dialog.h"
 #include "ui/scene.h"
 #include "ui/ui_common.h"
 #include "ui/widget/button.h"
@@ -177,6 +178,10 @@ static void update(civ_game_t *game, civ_input_state_t *input) {
     civ_scene_manager_switch(SCENE_PROFILE_SELECT);
 
   if (civ_widget_button_was_clicked(btn_exit)) {
+    civ_confirm_show("Exit Dominion", "Are you sure you want to exit?");
+  }
+  /* Handle confirmation dialog result */
+  if (civ_confirm_result() == 1) {
     SDL_Event e; e.type = SDL_EVENT_QUIT; SDL_PushEvent(&e);
   }
 

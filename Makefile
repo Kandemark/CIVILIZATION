@@ -50,7 +50,8 @@ WIDGET_SRCS = \
 	src/ui/widget/slider.c \
 	src/ui/widget/dropdown.c \
 	src/ui/widget/tab_bar.c \
-	src/ui/widget/modal.c
+	src/ui/widget/modal.c \
+	src/ui/confirm_dialog.c
 
 # Layout engine sources
 LAYOUT_SRCS = \
