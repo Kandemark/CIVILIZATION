@@ -110,7 +110,12 @@ static void update(civ_game_t *game, civ_input_state_t *input) {
 
   /* Step 3: Review — confirm */
   if (step == 3) {
-    btn_confirm->base.x = 0; btn_confirm->base.y = 0;
+    /* Position button over the ID card before update */
+    int card_w = 480, card_h = 320;
+    int cx = (input->win_w - card_w) / 2;
+    btn_confirm->base.x = (float)(cx + card_w/2 - 110);
+    btn_confirm->base.y = (float)(input->win_h/2 + card_h/2 - 50);
+    btn_confirm->base.w = 220; btn_confirm->base.h = 38;
     civ_widget_button_update(btn_confirm, input, dt);
 
     if (civ_widget_button_was_clicked(btn_confirm)) {
@@ -285,11 +290,7 @@ static void render_review(SDL_Renderer *r, int win_w, int win_h,
         g_theme.hud_text, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
   }
 
-  /* Confirm button */
-  ly = cy + card_h - 50;
-  btn_confirm->base.x = (float)(cx + card_w/2 - 110);
-  btn_confirm->base.y = (float)ly;
-  btn_confirm->base.w = 220; btn_confirm->base.h = 38;
+  /* Confirm button (positioned in update) */
   civ_widget_button_render(btn_confirm, r, font_body);
 }
 
