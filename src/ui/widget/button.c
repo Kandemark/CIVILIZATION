@@ -16,7 +16,7 @@ civ_widget_button_t *civ_widget_button_create(const char *id, float x, float y,
   btn->color_hover = g_theme.bg_light;
   btn->color_press = g_theme.primary_dark;
   btn->color_text = g_theme.text_primary;
-  btn->color_border = 0x1A2A3A;
+  btn->color_border = g_theme.hud_border;
   btn->corner_radius = 6;
   civ_tween_init(&btn->hover_tween);
   return btn;
@@ -69,14 +69,18 @@ void civ_widget_button_render(civ_widget_button_t *btn, SDL_Renderer *r,
 
   float hover_amt = civ_tween_value(&btn->hover_tween);
 
-  /* Background */
+  /* Shadow */
+  civ_render_shadow(r, x + 1, y + 2, w, h, btn->corner_radius, 3, 60);
+
+  /* Background with subtle gradient */
   uint32_t bg = btn->color_bg;
   if (btn->base.state == CIV_WIDGET_HOVERED)
     bg = civ_theme_mix(btn->color_bg, btn->color_hover, hover_amt);
   if (btn->base.state == CIV_WIDGET_PRESSED) bg = btn->color_press;
   if (!btn->base.enabled) bg = 0x111111;
 
-  civ_render_rect_filled_alpha(r, x, y, w, h, bg, 240);
+  uint32_t bg_top = civ_theme_mix(bg, g_theme.bg_light, 0.15f);
+  civ_render_gradient_vertical(r, x, y, w, h, bg_top, bg);
 
   /* Border */
   uint32_t border = (btn->base.state == CIV_WIDGET_HOVERED || hover_amt > 0.01f)
@@ -87,7 +91,7 @@ void civ_widget_button_render(civ_widget_button_t *btn, SDL_Renderer *r,
 
   /* Text */
   if (font && btn->text[0]) {
-    uint32_t tc = btn->base.enabled ? btn->color_text : 0x4A5A6A;
+    uint32_t tc = btn->base.enabled ? btn->color_text : g_theme.text_dim;
     civ_font_render_aligned(r, font, btn->text, x, y, w, h, tc,
                             CIV_ALIGN_CENTER, CIV_VALIGN_MIDDLE);
   }

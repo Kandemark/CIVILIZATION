@@ -97,6 +97,17 @@ void civ_render_line(SDL_Renderer *renderer, int x1, int y1, int x2, int y2,
   SDL_RenderLine(renderer, (float)x1, (float)y1, (float)x2, (float)y2);
 }
 
+void civ_render_shadow(SDL_Renderer *r, int x, int y, int w, int h,
+                       int radius, int offset, uint8_t alpha) {
+  if (!r || alpha == 0) return;
+  /* Draw multiple layers of dark rects at increasing offsets */
+  for (int i = offset; i > 0; i--) {
+    uint8_t a = (uint8_t)(alpha * (offset - i + 1) / (offset + 1));
+    civ_render_rect_filled_alpha(r, x + i, y + i, w, h, 0x000000, a);
+  }
+  (void)radius;
+}
+
 void civ_render_gradient_vertical(SDL_Renderer *renderer, int x, int y, int w,
                                   int h, uint32_t color_top,
                                   uint32_t color_bottom) {

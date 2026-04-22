@@ -89,6 +89,10 @@ void civ_render_gradient_vertical(SDL_Renderer *renderer, int x, int y, int w,
                                   int h, uint32_t color_top,
                                   uint32_t color_bottom);
 
+/* Drop shadow behind a rounded rectangle */
+void civ_render_shadow(SDL_Renderer *r, int x, int y, int w, int h,
+                       int radius, int offset, uint8_t alpha);
+
 /**
  * Map rendering context
  */
