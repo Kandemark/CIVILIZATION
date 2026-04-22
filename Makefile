@@ -151,7 +151,11 @@ CORE_SRCS = \
 	src/core/world/settlement_manager.c \
 	src/core/world/wonders.c \
 	src/core/world/nation.c \
+	src/core/world/nations_data.c \
 	src/core/world/political_borders.c \
+	src/core/world/resource_map.c \
+	src/core/world/cities_data.c \
+	src/core/world/flag_system.c \
 	src/core/governance/government.c \
 	src/core/governance/custom_governance.c \
 	src/core/governance/branches/council.c \

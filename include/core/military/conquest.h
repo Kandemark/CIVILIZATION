@@ -9,6 +9,7 @@
 #include "../../common.h"
 #include "../../types.h"
 #include "../world/territory.h"
+#include "../world/map_generator.h"
 #include "../culture/cultural_assimilation.h"
 
 /* Conquest type */
@@ -45,6 +46,8 @@ typedef struct {
     
     time_t start_time;
     time_t last_update;
+    bool   completed;          /* true when progress hit 1.0 */
+    bool   territory_applied;  /* true after territory transfer done */
 } civ_conquest_event_t;
 
 /* Conquest system */
@@ -66,6 +69,11 @@ civ_result_t civ_conquest_start(civ_conquest_system_t* system,
                                 const char* attacker_id, const char* defender_id,
                                 const char* target_region_id, civ_conquest_type_t type);
 civ_result_t civ_conquest_update(civ_conquest_system_t* system, civ_float_t time_delta);
+
+/* Transfer territory from defender to attacker when conquest completes.
+   nation_manager is civ_nation_manager_t*, passed as void* to avoid circular include. */
+int civ_conquest_transfer_territory(civ_conquest_system_t *system, civ_map_t *map,
+                                     void *nation_manager);
 civ_result_t civ_conquest_plunder(civ_conquest_event_t* conquest, civ_plunder_result_t* result);
 civ_result_t civ_conquest_apply_assimilation(civ_conquest_event_t* conquest,
                                              civ_assimilation_tracker_t* assimilation_tracker);

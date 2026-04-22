@@ -95,6 +95,9 @@ int16_t civ_political_borders_tile_country(int32_t tx, int32_t ty, int32_t mw) {
   if (!s_borders || tx < 0 || ty < 0 || tx >= mw) return -1;
   return s_borders->tile_country[ty * mw + tx];
 }
+int civ_political_borders_country_count(void) {
+  return s_borders ? s_borders->count : 0;
+}
 void civ_political_borders_free(void) {
   borders_free_data(s_borders);
   s_borders = NULL;

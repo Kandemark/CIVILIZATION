@@ -146,7 +146,8 @@ static void render(SDL_Renderer *r, int win_w, int win_h, civ_game_t *game,
       if (map_ctx) { map_ctx->view_x = cam.x; map_ctx->view_y = cam.y; map_ctx->zoom = cam.zoom; }
     }
     if (map_ctx) { map_ctx->view_x = cam.x; map_ctx->view_y = cam.y; map_ctx->zoom = cam.zoom; }
-    civ_render_map(r, map_ctx, game->world_map, win_w, win_h);
+    civ_render_map(r, map_ctx, game->world_map, win_w, win_h,
+                   CIV_MAP_VIEW_POLITICAL, NULL);
   } else {
     civ_render_rect_filled(r, 0, 0, win_w, win_h, CIV_COLOR_BG_DARK);
   }

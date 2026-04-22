@@ -164,6 +164,13 @@ civ_render_map_context_create(SDL_Renderer *renderer, int fb_width,
     return NULL;
   }
 
+  /* LOD buffers — allocated lazily by civ_render_map_build_lods */
+  ctx->lods_built = false;
+  ctx->lod_buffer_512 = NULL;
+  ctx->lod_buffer_256 = NULL;
+  ctx->lod_texture_512 = NULL;
+  ctx->lod_texture_256 = NULL;
+
   return ctx;
 }
 
@@ -171,42 +178,236 @@ void civ_render_map_context_destroy(civ_render_map_context_t *ctx) {
   if (!ctx)
     return;
 
-  if (ctx->map_texture) {
-    SDL_DestroyTexture(ctx->map_texture);
-  }
-  if (ctx->pixel_buffer) {
-    free(ctx->pixel_buffer);
-  }
+  if (ctx->map_texture)    SDL_DestroyTexture(ctx->map_texture);
+  if (ctx->lod_texture_512) SDL_DestroyTexture(ctx->lod_texture_512);
+  if (ctx->lod_texture_256) SDL_DestroyTexture(ctx->lod_texture_256);
+  free(ctx->pixel_buffer);
+  free(ctx->lod_buffer_512);
+  free(ctx->lod_buffer_256);
   free(ctx);
 }
 
-/* Helper: Get map tile color — political map, water is blue, land = country color */
-static uint32_t get_map_color(const civ_map_tile_t *tile) {
+/* ── Elevation-to-color gradient (geographical view) ──────────────── */
+static uint32_t elevation_color(float elev) {
+  if (elev < 0.05f) return 0xFF0B2C4D;  /* deep water */
+  if (elev < 0.20f) return 0xFF15406A;  /* shallow water */
+  if (elev < 0.30f) return 0xFF1A5C3A;  /* coastal lowland */
+  if (elev < 0.40f) return 0xFF2D8C3C;  /* grassland */
+  if (elev < 0.55f) return 0xFF4DA830;  /* forest/hills */
+  if (elev < 0.70f) return 0xFF8B6914;  /* highland */
+  if (elev < 0.85f) return 0xFFA0855A;  /* mountain */
+  return 0xFFE0E0E0;                     /* snow peak */
+}
+
+/* ── Resource-to-color mapping (economic view) ───────────────────── */
+static uint32_t resource_heat_color(uint16_t total, int type_count) {
+  if (total == 0) return 0xFF2A2A2A;    /* no resources */
+  if (total < 50) return 0xFF2A4A2A;     /* trace */
+  if (total < 200) return 0xFF3A6A20;    /* light */
+  if (total < 800) return 0xFF6A9A10;    /* moderate */
+  if (total < 3000) return 0xFFAAAA20;   /* rich */
+  if (total < 10000) return 0xFFCC6600;  /* very rich */
+  return 0xFFFF2200;                      /* extremely rich */
+}
+
+/* ── Population density heat (demographical view) ────────────────── */
+static uint32_t density_color(float density) {
+  if (density < 0.01f) return 0xFF1A2A1A;
+  if (density < 0.05f) return 0xFF2A4A2A;
+  if (density < 0.15f) return 0xFF3A6A30;
+  if (density < 0.30f) return 0xFF5A8A20;
+  if (density < 0.50f) return 0xFFAAAA20;
+  if (density < 0.75f) return 0xFFCC6600;
+  return 0xFFFF2200;
+}
+
+/* ── Cultural influence coloring ─────────────────────────────────── */
+static uint32_t cultural_color(float influence) {
+  if (influence < 0.01f) return 0xFF1A1A2A;
+  if (influence < 0.10f) return 0xFF2A2A6A;
+  if (influence < 0.25f) return 0xFF3A3AAA;
+  if (influence < 0.45f) return 0xFF5555CC;
+  if (influence < 0.70f) return 0xFF7744CC;
+  return 0xFFCC44FF;
+}
+
+/* Forward declaration for LOD builder */
+static uint32_t get_map_color_for_view(const civ_map_tile_t *tile,
+                                        civ_map_view_type_t view,
+                                        const civ_resource_map_t *rm);
+
+/* ── LOD buffer construction ──────────────────────────────────────── */
+void civ_render_map_build_lods(civ_render_map_context_t *ctx, civ_map_t *map,
+                               SDL_Renderer *r) {
+  if (!ctx || !map || !r || ctx->lods_built) return;
+
+  int mw = ctx->map_width, mh = ctx->map_height;
+
+  /* 512x256 LOD: downsample 4x in both axes */
+  int lod512_w = mw / 4, lod512_h = mh / 4;  /* 512 x 256 */
+  ctx->lod_buffer_512 = malloc(lod512_w * lod512_h * sizeof(uint32_t));
+  ctx->lod_texture_512 = SDL_CreateTexture(r, SDL_PIXELFORMAT_ARGB8888,
+      SDL_TEXTUREACCESS_STATIC, lod512_w, lod512_h);
+  if (ctx->lod_buffer_512 && ctx->lod_texture_512) {
+    for (int ly = 0; ly < lod512_h; ly++) {
+      for (int lx = 0; lx < lod512_w; lx++) {
+        uint32_t rsum = 0, gsum = 0, bsum = 0, count = 0;
+        for (int dy = 0; dy < 4; dy++) {
+          for (int dx = 0; dx < 4; dx++) {
+            int tx = lx * 4 + dx, ty = ly * 4 + dy;
+            civ_map_tile_t *t = civ_map_get_tile(map, tx, ty);
+            if (!t) continue;
+            uint32_t c = get_map_color_for_view(t, CIV_MAP_VIEW_POLITICAL, NULL);
+            rsum += (c >> 16) & 0xFF;
+            gsum += (c >> 8) & 0xFF;
+            bsum += c & 0xFF;
+            count++;
+          }
+        }
+        if (count > 0) {
+          uint32_t avg = 0xFF000000 | ((rsum/count) << 16) | ((gsum/count) << 8) | (bsum/count);
+          ctx->lod_buffer_512[ly * lod512_w + lx] = avg;
+        } else {
+          ctx->lod_buffer_512[ly * lod512_w + lx] = 0xFF010204;
+        }
+      }
+    }
+    SDL_UpdateTexture(ctx->lod_texture_512, NULL, ctx->lod_buffer_512,
+                      lod512_w * sizeof(uint32_t));
+  }
+
+  /* 256x128 LOD: downsample 8x in both axes */
+  int lod256_w = mw / 8, lod256_h = mh / 8;  /* 256 x 128 */
+  ctx->lod_buffer_256 = malloc(lod256_w * lod256_h * sizeof(uint32_t));
+  ctx->lod_texture_256 = SDL_CreateTexture(r, SDL_PIXELFORMAT_ARGB8888,
+      SDL_TEXTUREACCESS_STATIC, lod256_w, lod256_h);
+  if (ctx->lod_buffer_256 && ctx->lod_texture_256) {
+    for (int ly = 0; ly < lod256_h; ly++) {
+      for (int lx = 0; lx < lod256_w; lx++) {
+        uint32_t rsum = 0, gsum = 0, bsum = 0, count = 0;
+        for (int dy = 0; dy < 8; dy++) {
+          for (int dx = 0; dx < 8; dx++) {
+            int tx = lx * 8 + dx, ty = ly * 8 + dy;
+            civ_map_tile_t *t = civ_map_get_tile(map, tx, ty);
+            if (!t) continue;
+            uint32_t c = get_map_color_for_view(t, CIV_MAP_VIEW_POLITICAL, NULL);
+            rsum += (c >> 16) & 0xFF;
+            gsum += (c >> 8) & 0xFF;
+            bsum += c & 0xFF;
+            count++;
+          }
+        }
+        if (count > 0) {
+          uint32_t avg = 0xFF000000 | ((rsum/count) << 16) | ((gsum/count) << 8) | (bsum/count);
+          ctx->lod_buffer_256[ly * lod256_w + lx] = avg;
+        } else {
+          ctx->lod_buffer_256[ly * lod256_w + lx] = 0xFF010204;
+        }
+      }
+    }
+    SDL_UpdateTexture(ctx->lod_texture_256, NULL, ctx->lod_buffer_256,
+                      lod256_w * sizeof(uint32_t));
+  }
+
+  ctx->lods_built = true;
+}
+
+/* Helper: Get map tile color based on current view type */
+static uint32_t get_map_color_for_view(const civ_map_tile_t *tile,
+                                        civ_map_view_type_t view,
+                                        const civ_resource_map_t *rm) {
   if (!tile) return 0xFF010204;
   if (!tile->is_explored) return 0xFF010204;
 
-  /* Water is always blue */
-  if (tile->land_use == CIV_LAND_USE_WATER)
-    return tile->is_visible ? 0xFF0B2C4D : 0xFF02060F;
+  bool is_water = (tile->land_use == CIV_LAND_USE_WATER);
+  float dim = tile->is_visible ? 1.0f : 0.33f;
 
-  /* Land: use political color if claimed, otherwise neutral gray */
-  if (tile->political_color != 0) {
-    uint32_t c = tile->political_color;
-    if (!tile->is_visible) {
-      uint8_t r = ((c >> 16) & 0xFF) / 3;
-      uint8_t g = ((c >> 8) & 0xFF) / 3;
-      uint8_t b = (c & 0xFF) / 3;
-      return 0xFF000000 | (r << 16) | (g << 8) | b;
+  switch (view) {
+    case CIV_MAP_VIEW_POLITICAL:
+    default:
+      if (is_water)
+        return tile->is_visible ? 0xFF0B2C4D : 0xFF02060F;
+      if (tile->political_color != 0) {
+        uint32_t c = tile->political_color;
+        if (!tile->is_visible) {
+          uint8_t r = ((c >> 16) & 0xFF) / 3;
+          uint8_t g = ((c >> 8) & 0xFF) / 3;
+          uint8_t b = (c & 0xFF) / 3;
+          return 0xFF000000 | (r << 16) | (g << 8) | b;
+        }
+        return c;
+      }
+      return tile->is_visible ? 0xFF3A3A3A : 0xFF101010;
+
+    case CIV_MAP_VIEW_GEOGRAPHICAL: {
+      uint32_t c = elevation_color(tile->elevation);
+      if (!tile->is_visible) {
+        uint8_t r = (((c >> 16) & 0xFF) * 2) / 3;
+        uint8_t g = (((c >> 8) & 0xFF) * 2) / 3;
+        uint8_t b = ((c & 0xFF) * 2) / 3;
+        return 0xFF000000 | (r << 16) | (g << 8) | b;
+      }
+      return c;
     }
-    return c;
-  }
 
-  /* Unclaimed land — neutral */
-  return tile->is_visible ? 0xFF3A3A3A : 0xFF101010;
+    case CIV_MAP_VIEW_ECONOMIC: {
+      if (is_water)
+        return tile->is_visible ? 0xFF0B2C4D : 0xFF02060F;
+      uint16_t total = 0;
+      int types = 0;
+      if (rm) {
+        total = civ_resource_map_total_at_tile(rm, (int32_t)tile->x, (int32_t)tile->y);
+        types = civ_resource_map_type_count_at_tile(rm, (int32_t)tile->x, (int32_t)tile->y);
+      }
+      uint32_t c = resource_heat_color(total, types);
+      if (!tile->is_visible) {
+        uint8_t r = (((c >> 16) & 0xFF) * 2) / 3;
+        uint8_t g = (((c >> 8) & 0xFF) * 2) / 3;
+        uint8_t b = ((c & 0xFF) * 2) / 3;
+        return 0xFF000000 | (r << 16) | (g << 8) | b;
+      }
+      return c;
+    }
+
+    case CIV_MAP_VIEW_DEMOGRAPHICAL: {
+      if (is_water)
+        return tile->is_visible ? 0xFF0B2C4D : 0xFF02060F;
+      uint32_t c = density_color(tile->population_density);
+      if (!tile->is_visible) {
+        uint8_t r = (((c >> 16) & 0xFF) * 2) / 3;
+        uint8_t g = (((c >> 8) & 0xFF) * 2) / 3;
+        uint8_t b = ((c & 0xFF) * 2) / 3;
+        return 0xFF000000 | (r << 16) | (g << 8) | b;
+      }
+      return c;
+    }
+
+    case CIV_MAP_VIEW_CULTURAL: {
+      if (is_water)
+        return tile->is_visible ? 0xFF0B2C4D : 0xFF02060F;
+      uint32_t c = cultural_color(tile->cultural_influence);
+      if (!tile->is_visible) {
+        uint8_t r = (((c >> 16) & 0xFF) * 2) / 3;
+        uint8_t g = (((c >> 8) & 0xFF) * 2) / 3;
+        uint8_t b = ((c & 0xFF) * 2) / 3;
+        return 0xFF000000 | (r << 16) | (g << 8) | b;
+      }
+      return c;
+    }
+
+    case CIV_MAP_VIEW_MILITARY:
+    case CIV_MAP_VIEW_DIPLOMATIC:
+      /* Placeholder: render as political with reduced saturation */
+      if (is_water)
+        return tile->is_visible ? 0xFF0B2C4D : 0xFF02060F;
+      return tile->is_visible ? 0xFF2A3A2A : 0xFF101010;
+  }
 }
 
 void civ_render_map(SDL_Renderer *renderer, civ_render_map_context_t *ctx,
-                    civ_map_t *map, int fb_width, int fb_height) {
+                    civ_map_t *map, int fb_width, int fb_height,
+                    civ_map_view_type_t view_type,
+                    const civ_resource_map_t *resource_map) {
   if (!renderer || !ctx || !map || !ctx->pixel_buffer)
     return;
 
@@ -214,6 +415,22 @@ void civ_render_map(SDL_Renderer *renderer, civ_render_map_context_t *ctx,
   float minZ = (float)fb_height / ((float)ctx->map_height * WORLD_UNIT_SIZE);
   if (ctx->zoom < minZ)
     ctx->zoom = minZ;
+
+  /* ── LOD rendering: use pre-computed low-res buffers at global zoom ── */
+  if (ctx->lods_built && view_type == CIV_MAP_VIEW_POLITICAL) {
+    if (ctx->zoom < 0.3f && ctx->lod_texture_256) {
+      /* 256x128 global overview */
+      SDL_FRect dst = {0, 0, (float)fb_width, (float)fb_height};
+      SDL_RenderTexture(renderer, ctx->lod_texture_256, NULL, &dst);
+      return;
+    }
+    if (ctx->zoom < 0.7f && ctx->lod_texture_512) {
+      /* 512x256 continental view */
+      SDL_FRect dst = {0, 0, (float)fb_width, (float)fb_height};
+      SDL_RenderTexture(renderer, ctx->lod_texture_512, NULL, &dst);
+      return;
+    }
+  }
 
   float inv_scale = 1.0f / (ctx->zoom * WORLD_UNIT_SIZE);
   float half_h = (fb_height * 0.5f) * inv_scale;
@@ -258,8 +475,7 @@ void civ_render_map(SDL_Renderer *renderer, civ_render_map_context_t *ctx,
         continue;
       }
 
-      uint32_t color = get_map_color(tile);
-      /* Atlas rendering: flat readable colors, no atmospheric effects. */
+      uint32_t color = get_map_color_for_view(tile, view_type, resource_map);
       if (tile->has_river && tile->elevation >= map->sea_level) {
         color = 0xFF2A8AE0;
       }
@@ -315,7 +531,7 @@ void civ_render_minimap(SDL_Renderer *renderer, int x, int y, int w, int h,
       int32_t my = (int32_t)(py * step_y);
       civ_map_tile_t *tile = civ_map_get_tile(map, mx, my);
       if (tile) {
-        uint32_t color = get_map_color(tile);
+        uint32_t color = get_map_color_for_view(tile, CIV_MAP_VIEW_POLITICAL, NULL);
         /* Use a simple pixel or small rect for minimap */
         SDL_SetRenderDrawColor(renderer, (color >> 16) & 0xFF,
                                (color >> 8) & 0xFF, color & 0xFF, 255);
@@ -392,5 +608,65 @@ void civ_render_settlements(SDL_Renderer *renderer,
     /* Note: Text labels (city name/pop) are usually rendered via civ_font
        which isn't available in renderer.c easily.
        We'll handle the labels in scene_game.c instead. */
+  }
+}
+
+/* ── Border line rendering ──────────────────────────────────────────── */
+void civ_render_map_borders(SDL_Renderer *renderer,
+                            civ_render_map_context_t *ctx,
+                            civ_map_t *map, int fb_w, int fb_h) {
+  if (!renderer || !ctx || !map) return;
+
+  /* Only draw borders at sufficient zoom */
+  if (ctx->zoom < 1.0f) return;
+
+  const float U = 4.0f; /* WORLD_UNIT_SIZE */
+  float inv_scale = 1.0f / (ctx->zoom * U);
+
+  /* Compute visible tile range */
+  float half_w = (fb_w * 0.5f) * inv_scale;
+  float half_h = (fb_h * 0.5f) * inv_scale;
+
+  int tx_start = (int)(ctx->view_x - half_w) - 1;
+  int ty_start = (int)(ctx->view_y - half_h) - 1;
+  int tx_end   = (int)(ctx->view_x + half_w) + 1;
+  int ty_end   = (int)(ctx->view_y + half_h) + 1;
+
+  if (tx_start < 0) tx_start = 0;
+  if (ty_start < 0) ty_start = 0;
+  if (tx_end > map->width) tx_end = map->width;
+  if (ty_end > map->height) ty_end = map->height;
+
+  SDL_SetRenderDrawColor(renderer, 255, 255, 255, 80);
+
+  for (int ty = ty_start; ty < ty_end; ty++) {
+    for (int tx = tx_start; tx < tx_end; tx++) {
+      civ_map_tile_t *tile = civ_map_get_tile(map, tx, ty);
+      if (!tile || tile->land_use == CIV_LAND_USE_WATER) continue;
+
+      /* World-to-screen for this tile */
+      float sx = fb_w / 2.0f + (tx - ctx->view_x) * ctx->zoom * U;
+      float sy = fb_h / 2.0f + (ty - ctx->view_y) * ctx->zoom * U;
+      float ts = ctx->zoom * U; /* tile size on screen */
+
+      /* Check right neighbor */
+      int nx = (tx + 1) % map->width;
+      civ_map_tile_t *rt = civ_map_get_tile(map, nx, ty);
+      if (rt && rt->land_use != CIV_LAND_USE_WATER &&
+          tile->owner_id[0] && rt->owner_id[0] &&
+          strcmp(tile->owner_id, rt->owner_id) != 0) {
+        SDL_RenderLine(renderer, sx + ts, sy, sx + ts, sy + ts);
+      }
+
+      /* Check bottom neighbor */
+      if (ty + 1 < map->height) {
+        civ_map_tile_t *bt = civ_map_get_tile(map, tx, ty + 1);
+        if (bt && bt->land_use != CIV_LAND_USE_WATER &&
+            tile->owner_id[0] && bt->owner_id[0] &&
+            strcmp(tile->owner_id, bt->owner_id) != 0) {
+          SDL_RenderLine(renderer, sx, sy + ts, sx + ts, sy + ts);
+        }
+      }
+    }
   }
 }

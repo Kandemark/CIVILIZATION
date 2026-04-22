@@ -7,6 +7,8 @@
 #define CIV_ENGINE_RENDERER_H
 
 #include "../core/world/map_generator.h"
+#include "../core/world/map_view.h"
+#include "../core/world/resource_map.h"
 #include "../core/world/settlement_manager.h"
 #include <SDL3/SDL.h>
 #include <stdbool.h>
@@ -96,6 +98,13 @@ typedef struct {
   int buffer_width;         /**< Buffer width */
   int buffer_height;        /**< Buffer height */
 
+  /* Multi-scale LOD buffers (pre-computed political view at low res) */
+  SDL_Texture *lod_texture_512;   /**< 512x256 downscale texture */
+  SDL_Texture *lod_texture_256;   /**< 256x128 downscale texture */
+  uint32_t    *lod_buffer_512;    /**< 512x256 CPU buffer */
+  uint32_t    *lod_buffer_256;    /**< 256x128 CPU buffer */
+  bool         lods_built;        /**< Whether LODs are computed */
+
   /* Camera state */
   float view_x; /**< Camera X position in world coords */
   float view_y; /**< Camera Y position in world coords */
@@ -125,6 +134,10 @@ civ_render_map_context_create(SDL_Renderer *renderer, int fb_width,
  */
 void civ_render_map_context_destroy(civ_render_map_context_t *ctx);
 
+/* Pre-compute downscale LOD buffers for smooth zoomed-out rendering */
+void civ_render_map_build_lods(civ_render_map_context_t *ctx, civ_map_t *map,
+                               SDL_Renderer *r);
+
 /**
  * Render world map to screen
  * @param renderer SDL renderer
@@ -134,13 +147,23 @@ void civ_render_map_context_destroy(civ_render_map_context_t *ctx);
  * @param fb_height Framebuffer height
  */
 void civ_render_map(SDL_Renderer *renderer, civ_render_map_context_t *ctx,
-                    civ_map_t *map, int fb_width, int fb_height);
+                    civ_map_t *map, int fb_width, int fb_height,
+                    civ_map_view_type_t view_type,
+                    const civ_resource_map_t *resource_map);
 
 /**
  * Render minimap to screen
  */
 void civ_render_minimap(SDL_Renderer *renderer, int x, int y, int w, int h,
                         civ_map_t *map, civ_render_map_context_t *ctx);
+
+/**
+ * Render border lines between territories with different owners.
+ * Only drawn at zoom > 1.0x for performance.
+ */
+void civ_render_map_borders(SDL_Renderer *renderer,
+                            civ_render_map_context_t *ctx,
+                            civ_map_t *map, int fb_w, int fb_h);
 
 /**
  * Render settlements on the map

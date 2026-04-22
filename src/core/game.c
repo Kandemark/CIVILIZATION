@@ -9,10 +9,14 @@
 #include "core/military/combat.h"
 #include "core/profile.h"
 #include "core/time_engine.h"
+#include "core/world/cities_data.h"
+#include "core/world/flag_system.h"
 #include "core/world/map_view.h"
 #include "core/world/nation.h"
+#include "core/world/nations_data.h"
 #include "core/world/political_borders.h"
 #include "core/world/real_world_map.h"
+#include "core/world/resource_map.h"
 #include "core/technology/innovation_system.h"
 #include "utils/config.h"
 #include "utils/memory_pool.h"
@@ -135,14 +139,54 @@ civ_result_t civ_game_initialize(civ_game_t *game,
     civ_political_borders_apply(game->world_map);
   }
 
-  /* Initialize nations */
+  /* Load master nation index from Natural Earth */
+  game->nations_data = civ_nations_data_create();
+  if (game->nations_data) {
+    civ_nations_data_load(game->nations_data, "data/nations.bin");
+    printf("[GAME] Nations data: %u countries loaded\n",
+           game->nations_data->count);
+  }
+
+  /* Load resource map */
+  game->resource_map = civ_resource_map_create(
+      game->world_map->width, game->world_map->height);
+  if (game->resource_map) {
+    civ_resource_map_load(game->resource_map, "data/resources.bin");
+    printf("[GAME] Resource map loaded\n");
+  }
+
+  /* Initialize nations from borders data + nations_data */
   {
     civ_nation_manager_t *nm = civ_nation_manager_create();
     if (nm) {
-      civ_nation_manager_init_default(nm);
+      civ_nation_manager_init_from_data(nm, game->nations_data,
+          game->world_map->width, game->world_map->height,
+          CIV_NATION_DEFAULT_COUNT);
       printf("[GAME] %d nations initialized\n", nm->count);
       game->nation_manager = nm;
+
+      /* Claim territory from borders for pixel-accurate ownership */
+      for (int ni = 0; ni < nm->count; ni++) {
+        civ_nation_claim_from_borders(&nm->nations[ni], game->world_map,
+            ni, game->world_map->width, game->world_map->height);
+      }
+      printf("[GAME] Territory claimed for %d nations\n", nm->count);
     }
+  }
+
+  /* Load flag metadata — textures loaded later when renderer is available */
+  game->flag_system = civ_flag_system_create(NULL);
+  if (game->flag_system) {
+    civ_flag_system_load(game->flag_system, "data/flags/index.bin", "data/flags");
+  }
+
+  /* Load cities data */
+  game->cities_data = civ_cities_data_create(
+      game->world_map->width, game->world_map->height);
+  if (game->cities_data) {
+    civ_cities_data_load(game->cities_data, "data/cities.bin");
+    printf("[GAME] Cities data: %u cities loaded\n",
+           game->cities_data->count);
   }
 
   /* Initialize time engine — global baseline 00 BC, custom calendars */
@@ -802,8 +846,13 @@ void civ_game_update(civ_game_t *game) {
     civ_politics_system_update(game->politics_system, dt);
 
   /* Phase 6: Military */
-  if (game->conquest_system)
+  if (game->conquest_system) {
     civ_conquest_update(game->conquest_system, dt);
+    int transferred = civ_conquest_transfer_territory(
+        game->conquest_system, game->world_map, game->nation_manager);
+    if (transferred > 0)
+      printf("[GAME] %d border tiles transferred via conquest\n", transferred);
+  }
 
   /* Phase 7: Territory & Borders */
   if (game->dynamic_borders)

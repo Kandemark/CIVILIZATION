@@ -2,10 +2,10 @@
  * @file nation.h
  * @brief Nation definitions with territory, government structure, subdivisions
  *
- * Nations claim territory on the Earth map. Each nation has a full
- * government structure (dynamic political positions defined by its
- * constitution), administrative subdivisions, and territorial borders
- * that are rendered on the map.
+ * Nations are created data-driven from Natural Earth country data loaded
+ * via nations_data and political_borders. Each nation has a full government
+ * structure (dynamic political positions defined by its constitution),
+ * administrative subdivisions, and territorial borders rendered on the map.
  */
 #ifndef CIV_WORLD_NATION_H
 #define CIV_WORLD_NATION_H
@@ -20,10 +20,11 @@
 extern "C" {
 #endif
 
-#define CIV_NATION_NAME_MAX   64
-#define CIV_NATION_ID_MAX     32
-#define CIV_NATION_COUNT      8
-#define CIV_SUBDIVISION_MAX   16
+#define CIV_NATION_NAME_MAX       64
+#define CIV_NATION_ID_MAX         32
+#define CIV_NATION_CAPACITY_MAX   256
+#define CIV_SUBDIVISION_MAX       16
+#define CIV_NATION_DEFAULT_COUNT  8    /* fallback for procedural maps */
 
 /* ── Territory region (lat/lon bounding box) ──────────────────────── */
 typedef struct {
@@ -38,8 +39,13 @@ typedef struct {
   uint32_t                color;
   uint32_t                color_accent;
 
-  /* Territory regions that define this nation's borders */
-  civ_nation_region_t  regions[8];
+  /* Data-driven identity */
+  uint32_t                data_id;         /* index into nations_data */
+  char                    iso_a3[4];       /* ISO 3166-1 alpha-3 */
+  char                    iso_a2[3];       /* ISO 3166-1 alpha-2 */
+
+  /* Territory regions (legacy: used for procedural fallback) */
+  civ_nation_region_t     regions[8];
   int                     region_count;
 
   /* Capital location */
@@ -72,22 +78,46 @@ typedef struct {
   float   gdp_per_capita;
 } civ_nation_t;
 
+/* ── Resource profile (computed from owned tiles) ────────────────── */
+typedef struct {
+  uint16_t quantities[20];     /* one per CIV_RESOURCE_COUNT */
+  uint8_t  best_quality[20];
+  uint16_t total_resources;
+  int      distinct_types;
+} civ_nation_resource_profile_t;
+
 /* ── Nation manager ────────────────────────────────────────────────── */
 typedef struct {
-  civ_nation_t  nations[CIV_NATION_COUNT];
-  int           count;
-  int           player_nation_index;
+  civ_nation_t  *nations;     /* heap-allocated dynamic array */
+  int            count;
+  int            capacity;
+  int            player_nation_index;
 } civ_nation_manager_t;
 
 civ_nation_manager_t *civ_nation_manager_create(void);
 void civ_nation_manager_destroy(civ_nation_manager_t *mgr);
 
-/* Create all starting nations with territory and government structures */
+/* Create all starting nations from borders data + nations_data */
+void civ_nation_manager_init_from_data(civ_nation_manager_t *mgr,
+                                       const void *nations_data,
+                                       int map_w, int map_h,
+                                       int default_count);
+
+/* Legacy: 8 hardcoded nations for procedural fallback */
 void civ_nation_manager_init_default(civ_nation_manager_t *mgr);
 
 /* Claim territory tiles on the world map for a nation */
 void civ_nation_claim_territory(civ_nation_t *nation, civ_map_t *map);
 void civ_nation_claim_all_territories(civ_nation_manager_t *mgr, civ_map_t *map);
+
+/* Claim territory from the borders tile map (pixel-accurate) */
+void civ_nation_claim_from_borders(civ_nation_t *n, civ_map_t *map,
+                                   int nation_idx, int map_w, int map_h);
+
+/* Compute resource profile from owned tiles */
+void civ_nation_calculate_resources(civ_nation_t *n, civ_map_t *map,
+                                    const void *resource_map,
+                                    civ_nation_resource_profile_t *out);
 
 /* Get nation by ID or index */
 civ_nation_t *civ_nation_get_by_id(civ_nation_manager_t *mgr, const char *id);
@@ -97,6 +127,10 @@ civ_nation_t *civ_nation_get_by_index(civ_nation_manager_t *mgr, int idx);
 bool civ_nation_contains_point(civ_nation_t *nation, float lon, float lat);
 bool civ_nation_contains_tile(civ_nation_t *nation, int32_t tx, int32_t ty,
                               int32_t map_w, int32_t map_h);
+
+/* Find nation owning a tile by checking owner_id on the tile itself */
+civ_nation_t *civ_nation_find_owner(civ_nation_manager_t *mgr, civ_map_t *map,
+                                    int32_t tx, int32_t ty);
 
 #ifdef __cplusplus
 }

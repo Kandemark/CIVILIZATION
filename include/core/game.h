@@ -58,8 +58,12 @@
 #include "subunits/subunit.h"
 #include "technology/innovation_system.h"
 #include "visualization/cultural_display.h"
+#include "world/cities_data.h"
 #include "world/dynamic_borders.h"
+#include "world/flag_system.h"
 #include "world/map_generator.h"
+#include "world/nations_data.h"
+#include "world/resource_map.h"
 #include "world/settlement_manager.h"
 #include "world/territory.h"
 #include "world/wonders.h"
@@ -227,6 +231,12 @@ typedef struct civ_game {
 
   /* Market engine */
   void *market;         /* civ_market_engine_t — opaque */
+
+  /* Data-driven world systems */
+  civ_nations_data_t    *nations_data;
+  civ_resource_map_t    *resource_map;
+  civ_cities_data_t     *cities_data;
+  civ_flag_system_t     *flag_system;
 
   /* Player wallet */
   civ_wallet_t wallet;

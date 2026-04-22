@@ -4,6 +4,8 @@
  */
 
 #include "core/military/conquest.h"
+#include "core/world/nation.h"
+#include "core/world/political_borders.h"
 #include "common.h"
 #include <stdlib.h>
 #include <string.h>
@@ -118,17 +120,15 @@ civ_result_t civ_conquest_update(civ_conquest_system_t* system, civ_float_t time
         conquest->progress = CLAMP(conquest->progress + progress_rate, 0.0f, 1.0f);
         conquest->last_update = now;
         
-        /* If conquest is complete, apply plunder and assimilation */
+        /* If conquest is complete, mark it for territory transfer */
         if (conquest->progress >= 1.0f) {
-            civ_plunder_result_t plunder_result = {0};
-            civ_conquest_plunder(conquest, &plunder_result);
-            conquest->plunder = plunder_result;
-            
-            /* Remove completed conquest */
-            memmove(&system->conquests[i], &system->conquests[i + 1],
-                   (system->conquest_count - i - 1) * sizeof(civ_conquest_event_t));
-            system->conquest_count--;
-            i--;
+            conquest->progress = 1.0f;
+            if (!conquest->completed) {
+                conquest->completed = true;
+                civ_plunder_result_t plunder_result = {0};
+                civ_conquest_plunder(conquest, &plunder_result);
+                conquest->plunder = plunder_result;
+            }
         }
     }
     
@@ -193,6 +193,70 @@ civ_result_t civ_conquest_apply_assimilation(civ_conquest_event_t* conquest,
                                       conquest->assimilation_type);
     
     return result;
+}
+
+int civ_conquest_transfer_territory(civ_conquest_system_t *system,
+                                     civ_map_t *map,
+                                     void *nm_void) {
+    if (!system || !map) return 0;
+    civ_nation_manager_t *nm = (civ_nation_manager_t *)nm_void;
+
+    int total_transferred = 0;
+
+    for (size_t i = 0; i < system->conquest_count; i++) {
+        civ_conquest_event_t *c = &system->conquests[i];
+        if (!c->completed || c->territory_applied) continue;
+
+        /* Find attacker nation to get its color */
+        civ_nation_t *attacker = NULL;
+        if (nm) attacker = civ_nation_get_by_id(nm, c->attacker_id);
+        uint32_t attacker_color = attacker ? attacker->color : 0xCC2200;
+
+        /* Transfer border tiles: defender tiles adjacent to attacker tiles */
+        int transferred = 0;
+        for (int32_t y = 1; y < map->height - 1; y++) {
+            for (int32_t x = 0; x < map->width; x++) {
+                civ_map_tile_t *tile = civ_map_get_tile(map, x, y);
+                if (!tile || tile->land_use == CIV_LAND_USE_WATER) continue;
+                if (strcmp(tile->owner_id, c->defender_id) != 0) continue;
+
+                /* Check if any neighbor is owned by attacker */
+                bool borders_attacker = false;
+                int nx_wrap = (x + 1) % map->width;
+                int px_wrap = (x - 1 + map->width) % map->width;
+                int dirs[4][2] = {{nx_wrap, y}, {px_wrap, y}, {x, y-1}, {x, y+1}};
+                for (int d = 0; d < 4; d++) {
+                    civ_map_tile_t *nt = civ_map_get_tile(map, dirs[d][0], dirs[d][1]);
+                    if (nt && strcmp(nt->owner_id, c->attacker_id) == 0) {
+                        borders_attacker = true;
+                        break;
+                    }
+                }
+                if (!borders_attacker) continue;
+
+                /* Transfer tile */
+                strncpy(tile->owner_id, c->attacker_id, STRING_SHORT_LEN - 1);
+                tile->political_color = attacker_color;
+                transferred++;
+            }
+        }
+
+        c->territory_applied = true;
+        total_transferred += transferred;
+    }
+
+    /* Clean up applied conquests */
+    for (size_t i = 0; i < system->conquest_count; ) {
+        if (system->conquests[i].territory_applied) {
+            memmove(&system->conquests[i], &system->conquests[i + 1],
+                   (system->conquest_count - i - 1) * sizeof(civ_conquest_event_t));
+            system->conquest_count--;
+        } else {
+            i++;
+        }
+    }
+
+    return total_transferred;
 }
 
 civ_conquest_event_t* civ_conquest_find(const civ_conquest_system_t* system,
