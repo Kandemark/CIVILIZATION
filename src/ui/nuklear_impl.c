@@ -304,12 +304,12 @@ void nk_ui_theme_dominion(struct nk_context *ctx) {
     struct nk_color table[NK_COLOR_COUNT];
     /* Dark Dominion palette */
     table[NK_COLOR_TEXT]         = nk_rgba(0xf0, 0xf8, 0xff, 255);
-    table[NK_COLOR_WINDOW]       = nk_rgba(0x07, 0x0b, 0x1a, 245);
-    table[NK_COLOR_HEADER]       = nk_rgba(0x0d, 0x15, 0x25, 240);
-    table[NK_COLOR_BORDER]       = nk_rgba(0x00, 0xd4, 0xff, 80);
-    table[NK_COLOR_BUTTON]       = nk_rgba(0x0d, 0x15, 0x25, 220);
-    table[NK_COLOR_BUTTON_HOVER] = nk_rgba(0x16, 0x20, 0x33, 240);
-    table[NK_COLOR_BUTTON_ACTIVE]= nk_rgba(0x00, 0x4a, 0x7a, 240);
+    table[NK_COLOR_WINDOW]       = nk_rgba(0x0d, 0x15, 0x28, 250);
+    table[NK_COLOR_HEADER]       = nk_rgba(0x14, 0x1e, 0x32, 245);
+    table[NK_COLOR_BORDER]       = nk_rgba(0x00, 0xd4, 0xff, 140);
+    table[NK_COLOR_BUTTON]       = nk_rgba(0x14, 0x22, 0x38, 235);
+    table[NK_COLOR_BUTTON_HOVER] = nk_rgba(0x1e, 0x30, 0x48, 245);
+    table[NK_COLOR_BUTTON_ACTIVE]= nk_rgba(0x00, 0x6a, 0xaa, 245);
     table[NK_COLOR_TOGGLE]       = nk_rgba(0x0d, 0x15, 0x25, 220);
     table[NK_COLOR_TOGGLE_HOVER] = nk_rgba(0x16, 0x20, 0x33, 240);
     table[NK_COLOR_TOGGLE_CURSOR]= nk_rgba(0x00, 0xd4, 0xff, 255);
