@@ -103,24 +103,7 @@ typedef struct {
   civ_float_t last_update_time;
 } civ_performance_metrics_t;
 
-/* Game event structure */
-/* Game event structure */
-/* Defined in events/event_manager.h, but we need it here if not included
-   properly or if circular dependency. Actually, event_manager.h usually defines
-   civ_event_t, not civ_game_event_t. Let's check if civ_game_event_t is used or
-   if it should be civ_event_t. Looking at game.c, it uses civ_game_event_t. If
-   it's redefined, it means it's defined elsewhere. Let's assume it's NOT
-   defined elsewhere for now, or if it is, we should use that. However, the
-   error said "Typedef redefinition". Let's check event_manager.h to see if it's
-   defined there. For now, I will comment it out if it's likely defined in
-   event_manager.h, BUT I haven't checked event_manager.h yet. Wait, the error
-   said "Typedef redefinition with different types". This implies it IS defined
-   elsewhere. I will remove this definition and rely on the include, OR rename
-   it if it's a specific game event struct. Let's rename it to avoid collision
-   if it's local to game.h, but game.c uses it. Let's try to find where else it
-   is defined. Actually, I'll just rename it to `civ_game_log_entry_t` to be
-   safe and distinct.
-*/
+/* Game event log entry — distinct from civ_game_event_t in event_manager.h */
 typedef struct {
   char type[STRING_SHORT_LEN];
   civ_timestamp_t timestamp;
@@ -136,7 +119,6 @@ typedef struct civ_game {
   civ_performance_metrics_t performance;
 
   /* Event log */
-  /* Event log */
   civ_game_log_entry_t *event_log;
   size_t event_log_size;
   size_t event_log_capacity;
@@ -148,7 +130,6 @@ typedef struct civ_game {
   civ_combat_system_t *military_system;
   civ_unit_manager_t *unit_manager;
   civ_diplomacy_system_t *diplomacy_system;
-  civ_soft_metrics_manager_t *soft_metrics;
   civ_event_manager_t *event_manager;
   civ_dynamic_borders_t *dynamic_borders;
   civ_government_t *government;
@@ -156,22 +137,19 @@ typedef struct civ_game {
   civ_culture_system_t *culture_system;
   civ_ai_system_t *ai_system;
   civ_map_t *world_map;
-  civ_map_view_manager_t *map_view_manager;
   civ_territory_manager_t *territory_manager;
   civ_custom_governance_manager_t *custom_governance_manager;
   civ_conquest_system_t *conquest_system;
-  civ_cultural_display_t *cultural_display;
   civ_politics_system_t *politics_system;
   civ_subunit_manager_t *subunit_manager;
   civ_ideology_system_t *ideology_system;
-  civ_org_manager_t *international_orgs;
   civ_settlement_manager_t *settlement_manager;
   civ_currency_manager_t *currency_manager;
   civ_trade_manager_t *trade_manager;
   civ_disaster_manager_t *disaster_manager;
   civ_wonder_manager_t *wonder_manager;
 
-  /* --- Economy systems (22 modules) --- */
+  /* --- Economy systems (18 modules) --- */
   /* Foundation */
   civ_banking_system_t          *banking;
   civ_taxation_system_t         *taxation;

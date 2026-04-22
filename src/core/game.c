@@ -1,7 +1,6 @@
 #include "core/game.h"
 #include "core/ai/ai_system.h"
 #include "core/character.h"
-#include "core/economy/financial_markets.h"
 #include "core/npc_engine.h"
 #include "core/culture/culture.h"
 #include "core/data/history_db.h"
@@ -253,7 +252,7 @@ civ_result_t civ_game_initialize(civ_game_t *game,
   game->war_economy        = civ_war_economy_create();
   game->black_market       = civ_black_market_create();
   game->innovation_economy = civ_innovation_economy_create();
-  printf("[GAME] 22 economy modules initialized\n");
+  printf("[GAME] 18 economy modules initialized\n");
 
   game->state = CIV_GAME_STATE_RUNNING;
   game->is_running = true;
@@ -462,7 +461,7 @@ civ_result_t civ_game_end_turn(civ_game_t *game) {
 }
 
 /* Phase 11: Stature Ranking Logic */
-void civ_game_update_stature_rankings(civ_game_t *game) {
+static void civ_game_update_stature_rankings(civ_game_t *game) {
   if (!game || !game->government)
     return;
 

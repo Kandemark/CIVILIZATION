@@ -105,6 +105,9 @@ void  civ_wallet_init(civ_wallet_t *w);
 void  civ_wallet_add(civ_wallet_t *w, const char *iso, float amount);
 float civ_wallet_balance(civ_wallet_t *w, const char *iso);
 float civ_wallet_total(civ_wallet_t *w, civ_market_engine_t *m);
+void civ_wallet_remove(civ_wallet_t *w, const char *iso);
+bool civ_wallet_exchange(civ_wallet_t *w, civ_market_engine_t *m,
+                         const char *from_iso, const char *to_iso, float amount);
 
 /* Commodity */
 civ_commodity_t *civ_market_get_commodity(civ_market_engine_t *m, const char *name);
@@ -117,9 +120,6 @@ float civ_market_dynamic_price(civ_market_engine_t *m, float base_price,
                                const char *currency_iso, float cost_of_living);
 
 
-/* Add a currency dynamically */
-civ_market_currency_t *civ_market_add_currency(civ_market_engine_t *m,
-    const char *iso, const char *name, const char *symbol, float rate);
 /* Add a currency dynamically */
 civ_market_currency_t *civ_market_add_currency(civ_market_engine_t *m,
     const char *iso, const char *name, const char *symbol, float rate);
