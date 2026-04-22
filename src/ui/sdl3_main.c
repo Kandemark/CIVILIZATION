@@ -7,6 +7,7 @@
 #include <stdio.h>
 
 int main(int argc, char *argv[]) {
+  setbuf(stdout, NULL);  /* unbuffered — debug output appears immediately */
   civ_app_controller_t app;
   civ_result_t init_result = civ_app_controller_init(&app, argc, argv);
   if (CIV_FAILED(init_result)) {
