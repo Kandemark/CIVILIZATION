@@ -1,28 +1,52 @@
 /**
  * @file paths.c
- * @brief Asset path resolution implementation
+ * @brief Asset path resolution — tries multiple base directories
  */
 #include "utils/paths.h"
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
-static char g_asset_root[512] = "";
+static char g_asset_roots[3][512];
+static int  g_asset_root_count = 0;
 
 void civ_path_init(const char *base_path) {
-  if (!base_path) { g_asset_root[0] = '\0'; return; }
-  size_t len = strlen(base_path);
-  if (len >= sizeof(g_asset_root)) len = sizeof(g_asset_root) - 1;
-  memcpy(g_asset_root, base_path, len);
-  g_asset_root[len] = '\0';
-  /* Strip trailing slash if present */
-  if (len > 0 && g_asset_root[len - 1] == '/')
-    g_asset_root[len - 1] = '\0';
+  g_asset_root_count = 0;
+
+  if (base_path && base_path[0]) {
+    char buf[512];
+    size_t len = strlen(base_path);
+    if (len >= sizeof(buf)) len = sizeof(buf) - 1;
+    memcpy(buf, base_path, len);
+    buf[len] = '\0';
+    if (len > 0 && buf[len - 1] == '/') buf[--len] = '\0';
+
+    /* 1. Exe parent (for dev: build/dominion -> project root) */
+    char *slash = strrchr(buf, '/');
+    if (slash) {
+      *slash = '\0';
+      snprintf(g_asset_roots[g_asset_root_count++], 512, "%s", buf);
+      *slash = '/';
+    }
+
+    /* 2. Exe directory itself */
+    snprintf(g_asset_roots[g_asset_root_count++], 512, "%s", buf);
+  }
+
+  /* 3. CWD */
+  char cwd[512];
+  if (getcwd(cwd, sizeof(cwd)))
+    snprintf(g_asset_roots[g_asset_root_count++], 512, "%s", cwd);
 }
 
 void civ_path_resolve(const char *relative, char *out, size_t out_sz) {
   if (!relative || !out || out_sz == 0) return;
-  if (g_asset_root[0])
-    snprintf(out, out_sz, "%s/%s", g_asset_root, relative);
-  else
-    snprintf(out, out_sz, "%s", relative);
+
+  for (int i = 0; i < g_asset_root_count; i++) {
+    snprintf(out, out_sz, "%s/%s", g_asset_roots[i], relative);
+    if (access(out, F_OK) == 0) return;
+  }
+
+  /* No file found — return CWD-relative path */
+  snprintf(out, out_sz, "%s", relative);
 }
