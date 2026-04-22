@@ -33,3 +33,12 @@ Makefile
 # OS
 Thumbs.db
 desktop.ini
+
+# Generated data files (built by tools/generate_*.py)
+data/*.bin
+data/*.earth
+data/flags/
+
+# Python cache
+tools/__pycache__/
+/tmp/
