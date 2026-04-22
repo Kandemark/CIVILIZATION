@@ -3,8 +3,8 @@
  * @brief Implementation of tactical AI
  */
 
-#include "../../../include/core/ai/tactical_ai.h"
-#include "../../../include/common.h"
+#include "core/ai/tactical_ai.h"
+#include "common.h"
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>

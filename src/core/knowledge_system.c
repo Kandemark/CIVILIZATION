@@ -3,8 +3,8 @@
  * @brief Implementation of uncapped knowledge advancement
  */
 
-#include "../../include/core/knowledge_system.h"
-#include "../../include/common.h"
+#include "core/knowledge_system.h"
+#include "common.h"
 #include <math.h>
 #include <stdio.h>
 

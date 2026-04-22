@@ -3,9 +3,9 @@
  * @brief Deterministic atlas-style global map generation.
  */
 
-#include "../../../include/common.h"
-#include "../../../include/core/data/history_db.h"
-#include "../../../include/core/world/map_generator.h"
+#include "common.h"
+#include "core/data/history_db.h"
+#include "core/world/map_generator.h"
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>

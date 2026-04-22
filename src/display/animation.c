@@ -1,4 +1,4 @@
-#include "../../include/display/animation.h"
+#include "display/animation.h"
 #include <math.h>
 #include <string.h>
 

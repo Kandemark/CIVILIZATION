@@ -1,5 +1,5 @@
-#include "../../../include/ui/panel/unit_sidebar.h"
-#include "../../../include/engine/renderer.h"
+#include "ui/panel/unit_sidebar.h"
+#include "engine/renderer.h"
 #include <stdio.h>
 #include <string.h>
 

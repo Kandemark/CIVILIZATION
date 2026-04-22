@@ -8,7 +8,7 @@
 
 #include "../../common.h"
 #include "../../types.h"
-#include "rule_system.h"
+#include "legal/constitution.h"
 
 /* Political Party System */
 typedef enum {

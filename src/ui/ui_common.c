@@ -1,4 +1,4 @@
-#include "../../include/ui/ui_common.h"
+#include "ui/ui_common.h"
 
 bool civ_rect_contains(const civ_rect_t *rect, int x, int y) {
   if (!rect) return false;

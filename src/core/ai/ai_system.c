@@ -3,8 +3,8 @@
  * @brief Implementation of main AI system
  */
 
-#include "../../../include/core/ai/ai_system.h"
-#include "../../../include/common.h"
+#include "core/ai/ai_system.h"
+#include "common.h"
 #include <stdlib.h>
 #include <string.h>
 

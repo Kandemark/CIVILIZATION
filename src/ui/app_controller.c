@@ -1,8 +1,8 @@
-#include "../../include/ui/app_controller.h"
-#include "../../include/display/theme.h"
-#include "../../include/engine/font.h"
-#include "../../include/ui/scene.h"
-#include "../../include/ui/ui_common.h"
+#include "ui/app_controller.h"
+#include "display/theme.h"
+#include "engine/font.h"
+#include "ui/scene.h"
+#include "ui/ui_common.h"
 #include <SDL3/SDL.h>
 #include <stdio.h>
 #include <string.h>

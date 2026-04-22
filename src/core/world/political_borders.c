@@ -2,8 +2,8 @@
  * @file political_borders.c
  * @brief Real political borders from Natural Earth admin-0 country data
  */
-#include "../../../include/core/world/political_borders.h"
-#include "../../../include/common.h"
+#include "core/world/political_borders.h"
+#include "common.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

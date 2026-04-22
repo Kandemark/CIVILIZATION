@@ -3,8 +3,8 @@
  * @brief Implementation of type utilities
  */
 
-#include "../../include/types.h"
-#include "../../include/common.h"
+#include "types.h"
+#include "common.h"
 #include <string.h>
 
 civ_string_t* civ_string_create(const char* str) {

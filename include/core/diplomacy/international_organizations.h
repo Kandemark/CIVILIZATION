@@ -8,7 +8,7 @@
 
 #include "../../common.h"
 #include "../../types.h"
-#include "../governance/rule_system.h"
+#include "../governance/legal/constitution.h"
 
 /* Organization Type */
 typedef enum {

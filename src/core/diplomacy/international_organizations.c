@@ -3,7 +3,7 @@
  * @brief Implementation of International Organizations System
  */
 
-#include "../../../include/core/diplomacy/international_organizations.h"
+#include "core/diplomacy/international_organizations.h"
 #include <stdio.h>
 
 civ_org_manager_t *civ_org_manager_create(void) {

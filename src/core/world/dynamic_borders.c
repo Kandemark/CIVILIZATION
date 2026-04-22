@@ -3,8 +3,8 @@
  * @brief Implementation of dynamic borders system
  */
 
-#include "../../../include/core/world/dynamic_borders.h"
-#include "../../../include/common.h"
+#include "core/world/dynamic_borders.h"
+#include "common.h"
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>

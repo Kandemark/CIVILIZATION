@@ -3,8 +3,8 @@
  * @brief Implementation of cultural identity system
  */
 
-#include "../../../include/core/culture/cultural_identity.h"
-#include "../../../include/common.h"
+#include "core/culture/cultural_identity.h"
+#include "common.h"
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>

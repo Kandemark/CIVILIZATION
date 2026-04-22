@@ -7,7 +7,7 @@
  * There are no "+25% military" bonuses — comparative position is computed
  * dynamically against global averages.
  */
-#include "../../include/core/faction.h"
+#include "core/faction.h"
 #include <string.h>
 
 /* Default sector weights — allocated to give each faction a distinct shape */

@@ -1,4 +1,4 @@
-#include "../../include/display/camera.h"
+#include "display/camera.h"
 #include <math.h>
 
 #define WORLD_UNIT_SIZE 4.0f

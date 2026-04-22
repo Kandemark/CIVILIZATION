@@ -3,8 +3,8 @@
  * @brief Implementation of population health and education
  */
 
-#include "../../../include/core/population/population_vitality.h"
-#include "../../../include/common.h"
+#include "core/population/population_vitality.h"
+#include "common.h"
 #include <stdlib.h>
 #include <string.h>
 

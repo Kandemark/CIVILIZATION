@@ -6,7 +6,7 @@
 #ifndef CIVILIZATION_NOISE_H
 #define CIVILIZATION_NOISE_H
 
-#include "../../include/types.h"
+#include "../types.h"
 
 /**
  * @brief Generate 2D Perlin noise

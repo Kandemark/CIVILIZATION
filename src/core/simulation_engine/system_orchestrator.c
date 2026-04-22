@@ -3,8 +3,8 @@
  * @brief Implementation of system orchestrator
  */
 
-#include "../../../include/core/simulation_engine/system_orchestrator.h"
-#include "../../../include/common.h"
+#include "core/simulation_engine/system_orchestrator.h"
+#include "common.h"
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>

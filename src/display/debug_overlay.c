@@ -1,4 +1,4 @@
-#include "../../include/display/debug_overlay.h"
+#include "display/debug_overlay.h"
 #include <stdio.h>
 
 void civ_debug_overlay_init(civ_debug_overlay_t *d) {

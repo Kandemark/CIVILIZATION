@@ -1,11 +1,11 @@
-#include "../../../include/ui/screens/screens.h"
-#include "../../../include/core/constitution.h"
-#include "../../../include/core/npc_engine.h"
-#include "../../../include/display/theme.h"
-#include "../../../include/engine/renderer.h"
-#include "../../../include/ui/ui_common.h"
-#include "../../../include/ui/graph/graph.h"
-#include "../../../include/ui/ui_common.h"
+#include "ui/screens/screens.h"
+#include "core/constitution.h"
+#include "core/npc_engine.h"
+#include "display/theme.h"
+#include "engine/renderer.h"
+#include "ui/ui_common.h"
+#include "ui/graph/graph.h"
+#include "ui/ui_common.h"
 #include <stdio.h>
 
 void civ_screen_economy_render(SDL_Renderer *r, civ_game_t *g, civ_font_t *f,

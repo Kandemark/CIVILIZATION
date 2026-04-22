@@ -1,5 +1,5 @@
-#include "../../../include/ui/widget/tooltip.h"
-#include "../../../include/engine/renderer.h"
+#include "ui/widget/tooltip.h"
+#include "engine/renderer.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>

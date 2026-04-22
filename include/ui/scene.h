@@ -1,9 +1,9 @@
 #ifndef CIVILIZATION_SCENE_H
 #define CIVILIZATION_SCENE_H
 
-#include "../../include/core/game.h"
-#include "../../include/engine/input.h"
-#include "../../include/engine/renderer.h"
+#include "../core/game.h"
+#include "../engine/input.h"
+#include "../engine/renderer.h"
 
 typedef struct {
   void (*init)(void);

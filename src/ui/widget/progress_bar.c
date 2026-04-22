@@ -1,6 +1,6 @@
-#include "../../../include/ui/widget/progress_bar.h"
-#include "../../../include/display/theme.h"
-#include "../../../include/engine/renderer.h"
+#include "ui/widget/progress_bar.h"
+#include "display/theme.h"
+#include "engine/renderer.h"
 #include <stdlib.h>
 #include <string.h>
 

@@ -1,8 +1,8 @@
-#include "../../../include/ui/panel/rulebook_panel.h"
-#include "../../../include/core/governance/government.h"
-#include "../../../include/core/governance/subdivision.h"
-#include "../../../include/core/governance/institution.h"
-#include "../../../include/engine/renderer.h"
+#include "ui/panel/rulebook_panel.h"
+#include "core/governance/government.h"
+#include "core/governance/territorial/subdivision.h"
+#include "core/governance/institutions/institution.h"
+#include "engine/renderer.h"
 #include <stdio.h>
 
 void civ_rulebook_panel_render(SDL_Renderer *r, civ_game_t *game,

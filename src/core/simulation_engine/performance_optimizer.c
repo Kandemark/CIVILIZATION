@@ -3,8 +3,8 @@
  * @brief Implementation of performance optimizer
  */
 
-#include "../../../include/core/simulation_engine/performance_optimizer.h"
-#include "../../../include/common.h"
+#include "core/simulation_engine/performance_optimizer.h"
+#include "common.h"
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>

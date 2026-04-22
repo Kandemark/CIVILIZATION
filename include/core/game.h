@@ -9,7 +9,6 @@
 #include "../common.h"
 #include "../types.h"
 #include "role.h"
-#include "market.h"
 #include "../utils/cache.h"
 #include "../utils/config.h"
 #include "../utils/memory_pool.h"
@@ -19,15 +18,34 @@
 #include "culture/ideology_system.h"
 #include "diplomacy/international_organizations.h"
 #include "diplomacy/relations.h"
-#include "economy/currency_system.h"
-#include "economy/market.h"
-#include "economy/trade_system.h"
+#include "economy/currency.h"
+#include "economy/banking.h"
+#include "economy/taxation.h"
+#include "economy/budget.h"
+#include "economy/economic_policy.h"
+#include "economy/agriculture.h"
+#include "economy/extraction.h"
+#include "economy/manufacturing.h"
+#include "economy/energy.h"
+#include "economy/financial_markets.h"
+#include "economy/macro_economy.h"
+#include "economy/commodity_markets.h"
+#include "economy/domestic_trade.h"
+#include "economy/international_trade.h"
+#include "economy/labor_market.h"
+#include "economy/infrastructure.h"
+#include "economy/housing.h"
+#include "economy/land_use.h"
+#include "economy/capital_assets.h"
+#include "economy/war_economy.h"
+#include "economy/black_market.h"
+#include "economy/innovation_economy.h"
 #include "environment/disaster_system.h"
 #include "environment/geography.h"
 #include "events/event_manager.h"
 #include "governance/custom_governance.h"
 #include "governance/government.h"
-#include "governance/legislative_system.h"
+#include "governance/branches/legislative.h"
 #include "military/combat.h"
 #include "military/conquest.h"
 #include "military/units.h"
@@ -143,11 +161,36 @@ typedef struct civ_game {
   civ_ideology_system_t *ideology_system;
   civ_org_manager_t *international_orgs;
   civ_settlement_manager_t *settlement_manager;
-  civ_legislative_manager_t *legislative_manager;
   civ_currency_manager_t *currency_manager;
   civ_trade_manager_t *trade_manager;
   civ_disaster_manager_t *disaster_manager;
   civ_wonder_manager_t *wonder_manager;
+
+  /* --- Economy systems (22 modules) --- */
+  /* Foundation */
+  civ_banking_system_t          *banking;
+  civ_taxation_system_t         *taxation;
+  civ_budget_system_t           *budget;
+  civ_economic_policy_system_t  *economic_policy;
+  /* Production */
+  civ_agriculture_system_t      *agriculture;
+  civ_extraction_system_t       *extraction;
+  civ_manufacturing_system_t    *manufacturing;
+  civ_energy_system_t           *energy;
+  /* Markets */
+  civ_market_engine_t           *financial_market;
+  civ_commodity_market_t        *commodity_market;
+  civ_domestic_trade_system_t   *domestic_trade;
+  civ_labor_market_t            *labor_market;
+  /* Infrastructure */
+  civ_infrastructure_system_t   *infrastructure;
+  civ_housing_system_t          *housing;
+  civ_land_use_system_t         *land_use;
+  civ_capital_assets_system_t   *capital_assets;
+  /* Specialized */
+  civ_war_economy_system_t      *war_economy;
+  civ_black_market_system_t     *black_market;
+  civ_innovation_economy_t      *innovation_economy;
 
   /* Performance and modularity systems */
   civ_system_orchestrator_t *system_orchestrator;

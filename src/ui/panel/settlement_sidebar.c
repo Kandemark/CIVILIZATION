@@ -1,5 +1,5 @@
-#include "../../../include/ui/panel/settlement_sidebar.h"
-#include "../../../include/engine/renderer.h"
+#include "ui/panel/settlement_sidebar.h"
+#include "engine/renderer.h"
 #include <stdio.h>
 
 void civ_settlement_sidebar_render(SDL_Renderer *r, civ_settlement_t *sett,

@@ -1,8 +1,8 @@
-#include "../../../include/ui/screens/screens.h"
-#include "../../../include/core/character.h"
-#include "../../../include/engine/renderer.h"
-#include "../../../include/ui/ui_common.h"
-#include "../../../include/ui/graph/graph.h"
+#include "ui/screens/screens.h"
+#include "core/character.h"
+#include "engine/renderer.h"
+#include "ui/ui_common.h"
+#include "ui/graph/graph.h"
 #include <stdio.h>
 
 void civ_screen_dashboard_render(SDL_Renderer *r, civ_game_t *g, civ_font_t *f,

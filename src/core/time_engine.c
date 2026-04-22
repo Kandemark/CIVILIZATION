@@ -6,8 +6,8 @@
  * Calendars define their own epoch, months, eras.
  * Nothing is fixed — players with power can create new calendars.
  */
-#include "../../include/core/time_engine.h"
-#include "../../include/common.h"
+#include "core/time_engine.h"
+#include "common.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

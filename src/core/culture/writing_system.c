@@ -3,8 +3,8 @@
  * @brief Implementation of writing system
  */
 
-#include "../../../include/core/culture/writing_system.h"
-#include "../../../include/common.h"
+#include "core/culture/writing_system.h"
+#include "common.h"
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>

@@ -3,7 +3,7 @@
  * @brief Single entry point delegating lifecycle to app controller.
  */
 
-#include "../../include/ui/app_controller.h"
+#include "ui/app_controller.h"
 #include <stdio.h>
 
 int main(int argc, char *argv[]) {

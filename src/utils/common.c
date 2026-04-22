@@ -3,7 +3,7 @@
  * @brief Implementation of common utilities
  */
 
-#include "../../include/common.h"
+#include "common.h"
 #include <stdarg.h>
 
 void civ_log(civ_log_level_t level, const char* format, ...) {

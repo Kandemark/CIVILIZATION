@@ -3,8 +3,8 @@
  * @brief Implementation of subunit system
  */
 
-#include "../../../include/core/subunits/subunit.h"
-#include "../../../include/common.h"
+#include "core/subunits/subunit.h"
+#include "common.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

@@ -3,8 +3,8 @@
  * @brief Implementation of dynamic territory system
  */
 
-#include "../../../include/core/world/territory.h"
-#include "../../../include/common.h"
+#include "core/world/territory.h"
+#include "common.h"
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>

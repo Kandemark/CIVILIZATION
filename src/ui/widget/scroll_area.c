@@ -1,6 +1,6 @@
-#include "../../../include/ui/widget/scroll_area.h"
-#include "../../../include/display/theme.h"
-#include "../../../include/engine/renderer.h"
+#include "ui/widget/scroll_area.h"
+#include "display/theme.h"
+#include "engine/renderer.h"
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>

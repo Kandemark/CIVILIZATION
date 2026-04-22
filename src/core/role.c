@@ -2,7 +2,7 @@
  * @file role.c
  * @brief Role system — pre-defined roles, dynamic nav, action permissions
  */
-#include "../../include/core/role.h"
+#include "core/role.h"
 #include <string.h>
 
 const civ_role_def_t civ_role_private_citizen = {

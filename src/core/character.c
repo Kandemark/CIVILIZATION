@@ -2,7 +2,7 @@
  * @file character.c
  * @brief Player character — a person in the simulated world
  */
-#include "../../include/core/character.h"
+#include "core/character.h"
 #include <stdlib.h>
 #include <string.h>
 

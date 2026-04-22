@@ -1,7 +1,7 @@
-#include "../../../include/engine/font.h"
-#include "../../../include/engine/window.h"
-#include "../../../include/ui/scene.h"
-#include "../../../include/ui/ui_common.h"
+#include "engine/font.h"
+#include "engine/window.h"
+#include "ui/scene.h"
+#include "ui/ui_common.h"
 #include <SDL3/SDL.h>
 
 /* Local state */

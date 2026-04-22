@@ -1,4 +1,4 @@
-#include "../../../include/ui/widget/widget_base.h"
+#include "ui/widget/widget_base.h"
 #include <stdlib.h>
 #include <string.h>
 

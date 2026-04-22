@@ -1,4 +1,4 @@
-#include "../../include/display/layer.h"
+#include "display/layer.h"
 #include <string.h>
 
 void civ_layer_stack_init(civ_layer_stack_t *stack) {

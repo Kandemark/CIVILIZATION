@@ -3,8 +3,8 @@
  * @brief Implementation of base AI system
  */
 
-#include "../../../include/core/ai/base_ai.h"
-#include "../../../include/common.h"
+#include "core/ai/base_ai.h"
+#include "common.h"
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>

@@ -1,10 +1,10 @@
-#include "../../../include/core/game.h"
-#include "../../../include/core/profile.h"
-#include "../../../include/engine/font.h"
-#include "../../../include/engine/renderer.h"
-#include "../../../include/ui/scene.h"
-#include "../../../include/ui/ui_common.h"
-#include "../../../include/ui/widget/button.h"
+#include "core/game.h"
+#include "core/profile.h"
+#include "engine/font.h"
+#include "engine/renderer.h"
+#include "ui/scene.h"
+#include "ui/ui_common.h"
+#include "ui/widget/button.h"
 #include <SDL3/SDL.h>
 #include <stdio.h>
 #include <stdlib.h>

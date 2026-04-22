@@ -1,5 +1,5 @@
-#include "../../../include/ui/widget/drawer.h"
-#include "../../../include/engine/renderer.h"
+#include "ui/widget/drawer.h"
+#include "engine/renderer.h"
 #include <stdlib.h>
 #include <string.h>
 

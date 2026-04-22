@@ -3,8 +3,8 @@
  * @brief Implementation of Dynamic Settlement Manager
  */
 
-#include "../../../include/core/world/settlement_manager.h"
-#include "../../../include/core/governance/government.h"
+#include "core/world/settlement_manager.h"
+#include "core/governance/government.h"
 #include <math.h>
 #include <stdio.h>
 #include <string.h>

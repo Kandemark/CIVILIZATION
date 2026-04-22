@@ -3,8 +3,8 @@
  * @brief Implementation of caching system
  */
 
-#include "../../include/utils/cache.h"
-#include "../../include/common.h"
+#include "utils/cache.h"
+#include "common.h"
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>

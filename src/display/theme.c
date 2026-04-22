@@ -1,4 +1,4 @@
-#include "../../include/display/theme.h"
+#include "display/theme.h"
 
 civ_theme_t g_theme;
 

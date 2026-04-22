@@ -6,8 +6,8 @@
 #ifndef CIV_ENGINE_RENDERER_H
 #define CIV_ENGINE_RENDERER_H
 
-#include "../../include/core/world/map_generator.h"
-#include "../../include/core/world/settlement_manager.h"
+#include "../core/world/map_generator.h"
+#include "../core/world/settlement_manager.h"
 #include <SDL3/SDL.h>
 #include <stdbool.h>
 #include <stdint.h>

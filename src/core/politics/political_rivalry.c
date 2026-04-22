@@ -3,8 +3,8 @@
  * @brief Implementation of power struggles and opposition management
  */
 
-#include "../../../include/core/politics/political_rivalry.h"
-#include "../../../include/common.h"
+#include "core/politics/political_rivalry.h"
+#include "common.h"
 #include <string.h>
 
 void civ_rivalry_init_rival(civ_political_rival_t *rival, const char *name) {

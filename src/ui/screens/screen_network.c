@@ -1,7 +1,7 @@
-#include "../../../include/ui/screens/screens.h"
-#include "../../../include/core/character.h"
-#include "../../../include/engine/renderer.h"
-#include "../../../include/ui/ui_common.h"
+#include "ui/screens/screens.h"
+#include "core/character.h"
+#include "engine/renderer.h"
+#include "ui/ui_common.h"
 
 void civ_screen_network_render(SDL_Renderer *r, civ_game_t *g, civ_font_t *f,
                                 int x, int y, int w, int h, int sh,

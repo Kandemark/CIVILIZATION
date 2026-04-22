@@ -3,8 +3,8 @@
  * @brief Implementation of language evolution system
  */
 
-#include "../../../include/core/culture/language_evolution.h"
-#include "../../../include/common.h"
+#include "core/culture/language_evolution.h"
+#include "common.h"
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>

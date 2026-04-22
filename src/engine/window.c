@@ -3,7 +3,7 @@
  * @brief SDL3 window management implementation
  */
 
-#include "../../include/engine/window.h"
+#include "engine/window.h"
 #include <stdio.h>
 #include <stdlib.h>
 

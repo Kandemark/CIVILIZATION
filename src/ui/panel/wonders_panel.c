@@ -1,6 +1,6 @@
-#include "../../../include/ui/panel/wonders_panel.h"
-#include "../../../include/core/world/wonders.h"
-#include "../../../include/engine/renderer.h"
+#include "ui/panel/wonders_panel.h"
+#include "core/world/wonders.h"
+#include "engine/renderer.h"
 #include <stdio.h>
 
 void civ_wonders_panel_render(SDL_Renderer *r, civ_game_t *game,

@@ -3,8 +3,8 @@
  * @brief SDL3 rendering utilities implementation
  */
 
-#include "../../include/engine/renderer.h"
-#include "../../include/utils/noise.h"
+#include "engine/renderer.h"
+#include "utils/noise.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>

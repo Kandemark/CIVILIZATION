@@ -3,8 +3,8 @@
  * @brief Implementation of soft metrics system
  */
 
-#include "../../../include/core/abstracts/soft_metrics.h"
-#include "../../../include/common.h"
+#include "core/abstracts/soft_metrics.h"
+#include "common.h"
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>

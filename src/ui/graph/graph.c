@@ -1,5 +1,5 @@
-#include "../../../include/ui/graph/graph.h"
-#include "../../../include/engine/renderer.h"
+#include "ui/graph/graph.h"
+#include "engine/renderer.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>

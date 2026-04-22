@@ -1,21 +1,21 @@
-#include "../../include/core/game.h"
-#include "../../include/core/ai/ai_system.h"
-#include "../../include/core/character.h"
-#include "../../include/core/market.h"
-#include "../../include/core/npc_engine.h"
-#include "../../include/core/culture/culture.h"
-#include "../../include/core/data/history_db.h"
-#include "../../include/core/diplomacy/relations.h"
-#include "../../include/core/military/combat.h"
-#include "../../include/core/profile.h"
-#include "../../include/core/time_engine.h"
-#include "../../include/core/world/map_view.h"
-#include "../../include/core/world/nation.h"
-#include "../../include/core/world/political_borders.h"
-#include "../../include/core/world/real_world_map.h"
-#include "../../include/core/technology/innovation_system.h"
-#include "../../include/utils/config.h"
-#include "../../include/utils/memory_pool.h"
+#include "core/game.h"
+#include "core/ai/ai_system.h"
+#include "core/character.h"
+#include "core/economy/financial_markets.h"
+#include "core/npc_engine.h"
+#include "core/culture/culture.h"
+#include "core/data/history_db.h"
+#include "core/diplomacy/relations.h"
+#include "core/military/combat.h"
+#include "core/profile.h"
+#include "core/time_engine.h"
+#include "core/world/map_view.h"
+#include "core/world/nation.h"
+#include "core/world/political_borders.h"
+#include "core/world/real_world_map.h"
+#include "core/technology/innovation_system.h"
+#include "utils/config.h"
+#include "utils/memory_pool.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -123,6 +123,7 @@ civ_result_t civ_game_initialize(civ_game_t *game,
   game->settlement_manager = civ_settlement_manager_create();
   game->wonder_manager = civ_wonder_manager_create();
   game->government = civ_government_create("Initial Government");
+  game->custom_governance_manager = civ_custom_governance_manager_create();
 
   /* Initialize system orchestrator */
   game->system_orchestrator = civ_system_orchestrator_create();
@@ -182,6 +183,28 @@ civ_result_t civ_game_initialize(civ_game_t *game,
   civ_market_generate_companies((civ_market_engine_t *)game->market, "Kenya");
   civ_market_generate_companies((civ_market_engine_t *)game->market, "Global");
   civ_wallet_init(&game->wallet);
+
+  /* --- Initialize economy modules --- */
+  game->banking            = civ_banking_create();
+  game->taxation           = civ_taxation_create();
+  game->budget             = civ_budget_create();
+  game->economic_policy    = civ_economic_policy_create();
+  game->agriculture        = civ_agriculture_create();
+  game->extraction         = civ_extraction_create();
+  game->manufacturing      = civ_manufacturing_create();
+  game->energy             = civ_energy_create();
+  game->financial_market   = civ_market_create();
+  game->commodity_market   = civ_resource_market_create();
+  game->domestic_trade     = civ_domestic_trade_create();
+  game->labor_market       = civ_labor_market_create();
+  game->infrastructure     = civ_infrastructure_create();
+  game->housing            = civ_housing_create();
+  game->land_use           = civ_land_use_create(10000.0);
+  game->capital_assets     = civ_capital_assets_create();
+  game->war_economy        = civ_war_economy_create();
+  game->black_market       = civ_black_market_create();
+  game->innovation_economy = civ_innovation_economy_create();
+  printf("[GAME] 22 economy modules initialized\n");
 
   game->state = CIV_GAME_STATE_RUNNING;
   game->is_running = true;
@@ -253,7 +276,16 @@ civ_result_t civ_game_end_turn(civ_game_t *game) {
   }
 
   if (game->government) {
-    civ_government_update(game->government, 1.0f);
+    /* End-of-turn governance tick */
+    int pop = game->population_manager && game->population_manager->demographics
+      ? (int)game->population_manager->demographics->total_population : 10000;
+    float cult = game->culture_system ? 0.50f : 0.30f;
+    float gbudget = game->budget ? game->budget->total_expenditure : 100000.0f;
+    float edu   = game->population_manager ? game->population_manager->education_quality : 0.50f;
+    float econ  = game->economic_policy ? game->economic_policy->consumer_confidence : 0.50f;
+    civ_government_update(game->government, 1.0f, pop, cult, gbudget, edu, econ, edu,
+                          game->politics_system ? 0.55f : 0.50f,
+                          game->politics_system ? 3 : 2);
   }
 
   /* Global Science Production: 1 base + 1 per 1000 population */
@@ -415,19 +447,345 @@ void civ_game_update(civ_game_t *game) {
     dt = civ_time_manager_update(game->time_manager);
   }
 
-  /* Phase 1: Demographics & Economy */
-  if (game->population_manager)
+  /* Phase 1: Demographics & Economy
+   * ================================================================
+   * Dependencies flow top-down. Each module reads values produced by
+   * modules above it. Circular deps use previous-cycle (lagged) values.
+   * ================================================================ */
+
+  /* --- Extract baseline data from core systems --- */
+  int64_t   total_pop  = 0;
+  civ_float_t tech_lev  = 1.0;
+  civ_float_t education = 0.50;
+  civ_float_t health    = 0.50;
+
+  if (game->population_manager) {
     civ_population_manager_update(game->population_manager, dt, NULL);
-  if (game->market_economy)
-    civ_market_dynamics_update(game->market_economy, dt, NULL, NULL, 0.0f);
+    if (game->population_manager->demographics)
+      total_pop = game->population_manager->demographics->total_population;
+    education = game->population_manager->education_quality;
+    health    = game->population_manager->health_index;
+  }
+  if (total_pop < 100) total_pop = 100;
+
+  if (game->technology_tree)
+    tech_lev = (civ_float_t)game->technology_tree->aggregate_index / 100.0;
+  if (tech_lev < 0.1) tech_lev = 0.1;
+
+  /* Governance signals — single source of truth */
+  civ_float_t gov_efficiency  = game->government ? game->government->efficiency : 0.50;
+  civ_float_t corruption      = game->government
+    ? civ_government_get_corruption(game->government) : 0.10f;
+  civ_float_t gov_stability   = game->government ? game->government->stability : 0.60f;
+  civ_float_t gov_legitimacy  = game->government ? game->government->legitimacy : 0.60f;
+  civ_float_t regulation_level = 0.35;
+  if (game->economic_policy)
+    regulation_level = (civ_float_t)game->economic_policy->regulation * 0.25;
+
+  /* Geography */
+  civ_float_t arable_area    = game->geography ? civ_geography_get_agricultural_area(game->geography) : 2000.0;
+  civ_float_t geography_size = 10000.0;
+  if (game->geography && game->geography->patch_count > 0) {
+    geography_size = 0.0;
+    for (size_t pi = 0; pi < game->geography->patch_count; pi++)
+      geography_size += game->geography->land_patches[pi].area;
+  }
+  if (geography_size < 100.0) geography_size = 100.0;
+
+  /* Governance cross-module bonuses — read once, applied throughout economy */
+  float gov_econ_bonus    = 1.0f;
+  float gov_trade_bonus   = 1.0f;
+  float gov_research_bonus = 1.0f;
+  float gov_military_bonus = 1.0f;
+  float gov_cohesion       = 0.50f;
+  if (game->government) {
+    civ_governance_state_t *ev = &game->government->evolution_state;
+    gov_econ_bonus     = (float)civ_governance_economic_bonus(ev);
+    gov_trade_bonus    = (float)civ_governance_trade_bonus(ev);
+    gov_research_bonus = (float)civ_governance_research_bonus(ev);
+    gov_military_bonus = (float)civ_governance_military_bonus(ev);
+    gov_cohesion       = (float)civ_governance_cohesion_bonus(ev);
+  }
+
+  /* =================================================================
+   * Phase 1a: macro_economy (produces GDP, inflation, growth, unemployment)
+   * ================================================================= */
+  civ_float_t gdp            = 500000.0;
+  civ_float_t gdp_per_capita = 50000.0;
+  civ_float_t gdp_growth     = 0.02;
+  civ_float_t inflation      = 0.02;
+  civ_float_t unemployment   = 0.05;
+
+  if (game->market_economy) {
+    civ_market_dynamics_update(game->market_economy, dt, game->population_manager,
+                               game->geography, tech_lev * gov_econ_bonus);
+    civ_economic_report_t rep = civ_market_dynamics_get_report(game->market_economy);
+    gdp            = rep.gdp * gov_econ_bonus;
+    gdp_per_capita = rep.gdp_per_capita * gov_econ_bonus;
+    gdp_growth     = rep.growth_rate * gov_econ_bonus;
+    inflation      = rep.inflation_rate;
+    unemployment   = rep.unemployment_rate;
+  }
+
+  /* =================================================================
+   * Phase 1b: labor_market (needs population + GDP + education + confidence)
+   * ================================================================= */
+  civ_float_t business_conf = game->economic_policy ? game->economic_policy->business_confidence : 0.60;
+  civ_float_t avg_wage      = 30000.0;
+  int         labor_avail   = (int)(total_pop * 0.4);
+  int         labor_employed = 0;
+
+  if (game->labor_market) {
+    civ_labor_market_update(game->labor_market, dt, (int)total_pop, gdp, tech_lev,
+                            education, business_conf);
+    unemployment  = game->labor_market->overall_unemployment;
+    avg_wage      = game->labor_market->avg_wage_national;
+    labor_avail   = game->labor_market->total_workforce - game->labor_market->total_employed;
+    if (labor_avail < 0) labor_avail = 0;
+    labor_employed = game->labor_market->total_employed;
+  }
+
+  /* =================================================================
+   * Phase 1c: economic_policy (needs macro indicators)
+   * ================================================================= */
+  if (game->economic_policy) {
+    civ_economic_policy_update(game->economic_policy, dt, inflation,
+                               unemployment, gdp_growth, corruption);
+    business_conf = game->economic_policy->business_confidence;
+    regulation_level = (civ_float_t)game->economic_policy->regulation * 0.25;
+  }
+
+  /* =================================================================
+   * Phase 1d: taxation (needs GDP + population + governance)
+   * ================================================================= */
+  civ_float_t tax_revenue = 50000.0;
+
+  if (game->taxation) {
+    civ_taxation_update(game->taxation, dt, gdp, (civ_float_t)total_pop,
+                        gov_efficiency, corruption);
+    tax_revenue = game->taxation->total_revenue;
+  }
+
+  /* =================================================================
+   * Phase 1e: budget (needs tax revenue + GDP + population + inflation)
+   * ================================================================= */
+  civ_float_t budget_infra_allocation = 30000.0;
+  civ_float_t gov_spending_ratio      = 0.20;
+  civ_float_t debt_interest_rate      = 0.03;
+  civ_float_t savings_rate            = 0.15;
+
+  if (game->budget) {
+    civ_budget_update(game->budget, dt, tax_revenue, gdp,
+                      (civ_float_t)total_pop, inflation);
+    gov_spending_ratio   = (gdp > 0) ? game->budget->total_expenditure / gdp : 0.20;
+    budget_infra_allocation = civ_budget_spending_for(game->budget, CIV_BUDGET_INFRASTRUCTURE);
+    debt_interest_rate   = game->budget->debt_interest_rate;
+    savings_rate         = 1.0 - gov_spending_ratio;
+    if (savings_rate < 0.05) savings_rate = 0.05;
+  }
+
+  /* =================================================================
+   * Phase 1f: banking (needs macro + gov spending)
+   * ================================================================= */
+  if (game->banking) {
+    civ_banking_update(game->banking, dt, inflation, gdp_growth,
+                       unemployment, gov_spending_ratio);
+    debt_interest_rate = game->banking->base_interest_rate; /* banking rate overrides budget rate */
+  }
+
+  /* =================================================================
+   * Phase 1g: agriculture (needs population + arable land + tech + climate)
+   * ================================================================= */
+  civ_float_t food_surplus = 0.0;
+  if (game->agriculture) {
+    civ_agriculture_update(game->agriculture, dt, (civ_float_t)total_pop,
+                           arable_area, tech_lev, 1.0);
+    food_surplus = game->agriculture->food_surplus;
+  }
+
+  /* =================================================================
+   * Phase 1h: extraction (needs tech + labor + geography)
+   * ================================================================= */
+  civ_float_t raw_materials = 100.0;
+  if (game->extraction) {
+    civ_float_t mineral_richness = 0.70; /* proxy — no direct geography field yet */
+    civ_extraction_update(game->extraction, dt, tech_lev,
+                          (civ_float_t)labor_avail, mineral_richness);
+    raw_materials = game->extraction->total_output;
+    if (raw_materials < 1.0) raw_materials = 1.0;
+  }
+
+  /* =================================================================
+   * Phase 1i: infrastructure (needs budget + population + geography)
+   * ================================================================= */
+  civ_float_t infra_quality = 0.50;
+  civ_float_t infra_supply_chain = 0.50;
+  if (game->infrastructure) {
+    civ_infrastructure_update(game->infrastructure, dt, budget_infra_allocation,
+                              (civ_float_t)total_pop, geography_size);
+    infra_quality       = game->infrastructure->overall_quality;
+    infra_supply_chain  = game->infrastructure->supply_chain_efficiency;
+  }
+
+  /* =================================================================
+   * Phase 1j: manufacturing (needs tech + labor + raw materials + infra)
+   * ================================================================= */
+  civ_float_t industrial_output = 500.0;
+  if (game->manufacturing) {
+    civ_manufacturing_update(game->manufacturing, dt, tech_lev,
+                             (civ_float_t)labor_avail, raw_materials, infra_quality);
+    industrial_output = game->manufacturing->total_industrial_output;
+    if (industrial_output < 1.0) industrial_output = 1.0;
+  }
+
+  /* =================================================================
+   * Phase 1k: energy (needs population + industrial output + tech)
+   * ================================================================= */
+  civ_float_t energy_price = 50.0;
+  if (game->energy) {
+    civ_energy_update(game->energy, dt, (civ_float_t)total_pop,
+                      industrial_output, tech_lev, 0.80);
+    energy_price = game->energy->energy_price;
+  }
+
+  /* =================================================================
+   * Phase 1l: housing (needs population + wages + interest + costs)
+   * ================================================================= */
+  civ_float_t construction_cost_index = (energy_price / 50.0 + infra_quality > 0)
+                                         ? (1.0 + (1.0 - infra_quality)) : 1.5;
+  if (game->housing) {
+    civ_housing_update(game->housing, dt, (int)total_pop, avg_wage,
+                       debt_interest_rate, construction_cost_index);
+  }
+
+  /* =================================================================
+   * Phase 1m: land_use (needs population + GDP/capita + urbanization)
+   * ================================================================= */
+  civ_float_t urban_rate = game->housing ? game->housing->urbanization : 0.55;
+  if (game->land_use) {
+    civ_land_use_update(game->land_use, dt, (int)total_pop, gdp_per_capita, urban_rate);
+  }
+
+  /* =================================================================
+   * Phase 1n: capital_assets (needs GDP + savings + interest + confidence)
+   * ================================================================= */
+  if (game->capital_assets) {
+    civ_capital_assets_update(game->capital_assets, dt, gdp, savings_rate,
+                              debt_interest_rate, business_conf);
+  }
+
+  /* =================================================================
+   * Phase 1o: domestic_trade (needs infrastructure + population + geography)
+   * ================================================================= */
+  if (game->domestic_trade) {
+    civ_domestic_trade_update(game->domestic_trade, dt, infra_quality,
+                              (civ_float_t)total_pop, geography_size);
+  }
+
+  /* =================================================================
+   * Phase 1p: international_trade
+   * ================================================================= */
   if (game->trade_manager)
     civ_trade_update(game->trade_manager, dt);
 
-  /* Phase 2: Diplomacy & Governance */
+  /* =================================================================
+   * Phase 1q: innovation_economy (needs GDP + education + confidence + capital)
+   * ================================================================= */
+  civ_float_t capital_avail = game->capital_assets
+    ? game->capital_assets->total_capital_stock / (gdp + 1.0) : 0.50;
+  if (game->innovation_economy) {
+    civ_innovation_economy_update(game->innovation_economy, dt, gdp, education,
+                                  business_conf, regulation_level, capital_avail);
+  }
+
+  /* =================================================================
+   * Phase 1r: black_market (needs GDP + corruption + unemployment + regulation)
+   * ================================================================= */
+  if (game->black_market) {
+    civ_black_market_update(game->black_market, dt, gdp, corruption,
+                            unemployment, regulation_level, 10000.0);
+  }
+
+  /* =================================================================
+   * Phase 1s: war_economy (needs GDP + industrial output + population)
+   * ================================================================= */
+  bool actively_fighting = false;
+  if (game->war_economy) {
+    civ_war_economy_update(game->war_economy, dt, gdp, industrial_output,
+                           (int)total_pop, actively_fighting);
+  }
+
+  /* =================================================================
+   * Phase 2: Diplomacy & Governance
+   * ================================================================= */
   if (game->diplomacy_system)
     civ_diplomacy_system_update_relations(game->diplomacy_system, 0);
-  if (game->government)
-    civ_government_update(game->government, dt);
+
+  /* Feed budget allocations into government from economic budget module */
+  if (game->government && game->budget) {
+    civ_government_set_budget(game->government, CIV_BUDGET_MILITARY,
+      civ_budget_spending_for(game->budget, CIV_BUDGET_MILITARY));
+    civ_government_set_budget(game->government, CIV_BUDGET_INFRASTRUCTURE,
+      civ_budget_spending_for(game->budget, CIV_BUDGET_INFRASTRUCTURE));
+    civ_government_set_budget(game->government, CIV_BUDGET_EDUCATION,
+      civ_budget_spending_for(game->budget, CIV_BUDGET_EDUCATION));
+    civ_government_set_budget(game->government, CIV_BUDGET_HEALTHCARE,
+      civ_budget_spending_for(game->budget, CIV_BUDGET_HEALTHCARE));
+    civ_government_set_budget(game->government, CIV_BUDGET_WELFARE,
+      civ_budget_spending_for(game->budget, CIV_BUDGET_WELFARE));
+    civ_government_set_budget(game->government, CIV_BUDGET_RESEARCH,
+      civ_budget_spending_for(game->budget, CIV_BUDGET_RESEARCH));
+    civ_government_set_budget(game->government, CIV_BUDGET_ADMINISTRATION,
+      civ_budget_spending_for(game->budget, CIV_BUDGET_ADMINISTRATION));
+    civ_government_set_budget(game->government, CIV_BUDGET_DEBT_SERVICE,
+      civ_budget_spending_for(game->budget, CIV_BUDGET_DEBT_SERVICE));
+  }
+
+  /* Main governance tick — propagates to ALL 14 subsystems */
+  civ_float_t total_gov_budget = game->budget ? game->budget->total_expenditure : 100000.0f;
+  civ_float_t culture_level    = game->culture_system ? 0.50f : 0.30f;
+
+  if (game->government) {
+    float edu_lvl  = game->population_manager ? game->population_manager->education_quality : 0.50f;
+    float econ_conf = game->economic_policy ? game->economic_policy->consumer_confidence : 0.50f;
+    float lit_rate  = edu_lvl;
+    float fac_sup   = 0.55f;
+    int   fac_cnt   = 3;
+    civ_government_update(game->government, dt, (int)total_pop,
+                          culture_level, total_gov_budget, edu_lvl, econ_conf, lit_rate,
+                          fac_sup, fac_cnt);
+
+    /* Refresh corruption/efficiency from governance (updated this frame) */
+    corruption     = civ_government_get_corruption(game->government);
+    gov_efficiency = game->government->efficiency;
+    gov_stability  = game->government->stability;
+    gov_legitimacy = game->government->legitimacy;
+  }
+
+  /* Custom governance: parallel system — update if nations have custom govs */
+  if (game->custom_governance_manager) {
+    for (size_t i = 0; i < game->custom_governance_manager->government_count; i++) {
+      civ_custom_governance_t *cg = game->custom_governance_manager->governments + i;
+      civ_custom_governance_update(cg, dt);
+    }
+  }
+
+  /* ── Tick ALL nation governments autonomously ── */
+  if (game->nation_manager) {
+    civ_nation_manager_t *nm = (civ_nation_manager_t *)game->nation_manager;
+    for (int ni = 0; ni < nm->count; ni++) {
+      civ_nation_t *nation = &nm->nations[ni];
+      if (!nation->government) continue;
+      /* Skip player nation — already ticked above */
+      if (nation->government == game->government) continue;
+
+      /* Each nation gets its own governance tick with autonomous trait evolution */
+      civ_government_update(nation->government, dt, (int)total_pop,
+                            culture_level, total_gov_budget / (float)(nm->count + 1),
+                            education, business_conf, education, 0.55f, 3);
+    }
+  }
+
   /* Phase 3: Settlements & Production */
   if (game->settlement_manager)
     civ_settlement_manager_update(game->settlement_manager, game->world_map,
@@ -435,7 +793,7 @@ void civ_game_update(civ_game_t *game) {
 
   /* Phase 4: Technology */
   if (game->technology_tree)
-    civ_innovation_system_update(game->technology_tree, dt);
+    civ_innovation_system_update(game->technology_tree, dt * gov_research_bonus);
 
   /* Phase 5: Culture & Society */
   if (game->culture_system)
@@ -502,6 +860,40 @@ void civ_game_shutdown(civ_game_t *game) {
     civ_population_manager_destroy(game->population_manager);
   if (game->market_economy)
     civ_market_dynamics_destroy(game->market_economy);
+
+  /* Economy systems */
+  if (game->banking)            civ_banking_destroy(game->banking);
+  if (game->taxation)           civ_taxation_destroy(game->taxation);
+  if (game->budget)             civ_budget_destroy(game->budget);
+  if (game->economic_policy)    civ_economic_policy_destroy(game->economic_policy);
+  if (game->agriculture)        civ_agriculture_destroy(game->agriculture);
+  if (game->extraction)         civ_extraction_destroy(game->extraction);
+  if (game->manufacturing)      civ_manufacturing_destroy(game->manufacturing);
+  if (game->energy)             civ_energy_destroy(game->energy);
+  if (game->financial_market)   civ_market_destroy(game->financial_market);
+  if (game->commodity_market)   civ_resource_market_destroy(game->commodity_market);
+  if (game->domestic_trade)     civ_domestic_trade_destroy(game->domestic_trade);
+  if (game->labor_market)       civ_labor_market_destroy(game->labor_market);
+  if (game->infrastructure)     civ_infrastructure_destroy(game->infrastructure);
+  if (game->housing)            civ_housing_destroy(game->housing);
+  if (game->land_use)           civ_land_use_destroy(game->land_use);
+  if (game->capital_assets)     civ_capital_assets_destroy(game->capital_assets);
+  if (game->war_economy)        civ_war_economy_destroy(game->war_economy);
+  if (game->black_market)       civ_black_market_destroy(game->black_market);
+  if (game->innovation_economy) civ_innovation_economy_destroy(game->innovation_economy);
+
+  /* Governance */
+  if (game->nation_manager) {
+    civ_nation_manager_t *nm = (civ_nation_manager_t *)game->nation_manager;
+    for (int ni = 0; ni < nm->count; ni++) {
+      civ_nation_t *nation = &nm->nations[ni];
+      if (nation->government && nation->government != game->government)
+        civ_government_destroy(nation->government);
+    }
+  }
+  if (game->government)               civ_government_destroy(game->government);
+  if (game->custom_governance_manager) civ_custom_governance_manager_destroy(game->custom_governance_manager);
+
   if (game->technology_tree)
     civ_innovation_system_destroy(game->technology_tree);
   if (game->military_system)

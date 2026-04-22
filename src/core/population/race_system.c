@@ -3,8 +3,8 @@
  * @brief Implementation of emergent biological races
  */
 
-#include "../../../include/core/population/race_system.h"
-#include "../../../include/common.h"
+#include "core/population/race_system.h"
+#include "common.h"
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>

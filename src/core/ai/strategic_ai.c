@@ -3,10 +3,10 @@
  * @brief Implementation of strategic AI
  */
 
-#include "../../../include/core/ai/strategic_ai.h"
-#include "../../../include/core/game.h"
-#include "../../../include/core/world/map_generator.h"
-#include "../../../include/core/world/settlement_manager.h"
+#include "core/ai/strategic_ai.h"
+#include "core/game.h"
+#include "core/world/map_generator.h"
+#include "core/world/settlement_manager.h"
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>

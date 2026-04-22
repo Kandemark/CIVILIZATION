@@ -3,8 +3,8 @@
  * @brief Implementation of event management system
  */
 
-#include "../../../include/core/events/event_manager.h"
-#include "../../../include/common.h"
+#include "core/events/event_manager.h"
+#include "common.h"
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>

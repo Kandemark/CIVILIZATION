@@ -1,8 +1,8 @@
-#include "../../../include/ui/screens/screens.h"
-#include "../../../include/core/constitution.h"
-#include "../../../include/core/world/nation.h"
-#include "../../../include/engine/renderer.h"
-#include "../../../include/ui/ui_common.h"
+#include "ui/screens/screens.h"
+#include "core/constitution.h"
+#include "core/world/nation.h"
+#include "engine/renderer.h"
+#include "ui/ui_common.h"
 #include <stdio.h>
 
 void civ_screen_constitution_render(SDL_Renderer *r, civ_game_t *g, civ_font_t *f,

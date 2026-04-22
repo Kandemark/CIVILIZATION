@@ -3,8 +3,8 @@
  * @brief SDL3_ttf font rendering implementation using system fonts
  */
 
-#include "../../include/engine/font.h"
-#include "../../include/engine/renderer.h"
+#include "engine/font.h"
+#include "engine/renderer.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

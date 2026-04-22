@@ -1,5 +1,5 @@
-#include "../../../include/core/world/real_world_map.h"
-#include "../../../include/common.h"
+#include "core/world/real_world_map.h"
+#include "common.h"
 #include <stdio.h>
 #include <string.h>
 

@@ -2,9 +2,9 @@
  * @file governance_panel.c
  * @brief Governance panel — dynamic political structure, no fixed types
  */
-#include "../../../include/ui/panel/governance_panel.h"
-#include "../../../include/core/governance/government.h"
-#include "../../../include/engine/renderer.h"
+#include "ui/panel/governance_panel.h"
+#include "core/governance/government.h"
+#include "engine/renderer.h"
 #include <math.h>
 #include <stdio.h>
 

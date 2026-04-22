@@ -44,7 +44,8 @@ WIDGET_SRCS = \
 	src/ui/window_mgr.c \
 	src/ui/widget/drawer.c \
 	src/ui/widget/tooltip.c \
-	src/ui/widget/scroll_area.c
+	src/ui/widget/scroll_area.c \
+	src/ui/widget/label.c
 
 # Layout engine sources
 LAYOUT_SRCS = \
@@ -110,10 +111,28 @@ CORE_SRCS = \
 	src/core/population/population_manager.c \
 	src/core/population/population_vitality.c \
 	src/core/population/race_system.c \
-	src/core/economy/market.c \
-	src/core/economy/currency_system.c \
-	src/core/economy/trade_system.c \
-	src/core/economy/resource_market.c \
+	src/core/economy/macro_economy.c \
+	src/core/economy/currency.c \
+	src/core/economy/banking.c \
+	src/core/economy/taxation.c \
+	src/core/economy/budget.c \
+	src/core/economy/economic_policy.c \
+	src/core/economy/agriculture.c \
+	src/core/economy/extraction.c \
+	src/core/economy/manufacturing.c \
+	src/core/economy/energy.c \
+	src/core/economy/financial_markets.c \
+	src/core/economy/commodity_markets.c \
+	src/core/economy/domestic_trade.c \
+	src/core/economy/international_trade.c \
+	src/core/economy/labor_market.c \
+	src/core/economy/infrastructure.c \
+	src/core/economy/housing.c \
+	src/core/economy/land_use.c \
+	src/core/economy/capital_assets.c \
+	src/core/economy/war_economy.c \
+	src/core/economy/black_market.c \
+	src/core/economy/innovation_economy.c \
 	src/core/technology/innovation_system.c \
 	src/core/military/units.c \
 	src/core/military/combat.c \
@@ -135,18 +154,26 @@ CORE_SRCS = \
 	src/core/world/political_borders.c \
 	src/core/governance/government.c \
 	src/core/governance/custom_governance.c \
-	src/core/governance/interaction.c \
-	src/core/governance/conversation.c \
-	src/core/governance/ministry.c \
-	src/core/governance/notebook.c \
-	src/core/governance/corruption.c \
-	src/core/governance/societal_metrics.c \
-	src/core/governance/rule_system.c \
-	src/core/governance/governance_evolution.c \
-	src/core/governance/legal_status.c \
-	src/core/governance/legislative_system.c \
-	src/core/governance/institution.c \
-	src/core/governance/subdivision.c \
+	src/core/governance/branches/council.c \
+	src/core/governance/branches/executive.c \
+	src/core/governance/branches/judiciary.c \
+	src/core/governance/branches/legislative.c \
+	src/core/governance/branches/religious_body.c \
+	src/core/governance/legal/constitution.c \
+	src/core/governance/legal/legal_status.c \
+	src/core/governance/legal/rights.c \
+	src/core/governance/institutions/civil_service.c \
+	src/core/governance/institutions/institution.c \
+	src/core/governance/institutions/ministry.c \
+	src/core/governance/territorial/subdivision.c \
+	src/core/governance/political/corruption.c \
+	src/core/governance/political/elections.c \
+	src/core/governance/political/political_violence.c \
+	src/core/governance/evolution/governance_evolution.c \
+	src/core/governance/metrics/societal_metrics.c \
+	src/core/governance/interaction/conversation.c \
+	src/core/governance/interaction/interaction.c \
+	src/core/governance/interaction/notebook.c \
 	src/core/environment/geography.c \
 	src/core/environment/disaster_system.c \
 	src/core/abstracts/soft_metrics.c \
@@ -157,6 +184,7 @@ CORE_SRCS = \
 	src/core/culture/language_evolution.c \
 	src/core/culture/culture.c \
 	src/core/culture/religion_system.c \
+	src/core/culture/ideology_system.c \
 	src/core/visualization/cultural_display.c \
 	src/core/ai/base_ai.c \
 	src/core/ai/strategic_ai.c \
@@ -171,7 +199,6 @@ CORE_SRCS = \
 	src/core/npc_engine.c \
 	src/core/role.c \
 	src/core/constitution.c \
-	src/core/market.c \
 	src/core/time_engine.c \
 	src/core/knowledge_system.c
 

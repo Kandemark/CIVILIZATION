@@ -3,8 +3,8 @@
  * @brief Implementation of configuration system
  */
 
-#include "../../include/utils/config.h"
-#include "../../include/common.h"
+#include "utils/config.h"
+#include "common.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>

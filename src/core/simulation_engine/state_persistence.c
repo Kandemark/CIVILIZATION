@@ -3,8 +3,8 @@
  * @brief Implementation of state persistence
  */
 
-#include "../../../include/core/simulation_engine/state_persistence.h"
-#include "../../../include/common.h"
+#include "core/simulation_engine/state_persistence.h"
+#include "common.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

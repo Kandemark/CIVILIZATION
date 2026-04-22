@@ -1,5 +1,5 @@
-#include "../../../include/ui/widget/label.h"
-#include "../../../include/display/theme.h"
+#include "ui/widget/label.h"
+#include "display/theme.h"
 #include <stdlib.h>
 #include <string.h>
 

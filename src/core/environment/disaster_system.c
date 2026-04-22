@@ -3,7 +3,7 @@
  * @brief Implementation of Disaster System
  */
 
-#include "../../../include/core/environment/disaster_system.h"
+#include "core/environment/disaster_system.h"
 #include <math.h>
 #include <stdio.h>
 

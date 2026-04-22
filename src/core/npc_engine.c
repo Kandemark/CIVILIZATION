@@ -2,8 +2,8 @@
  * @file npc_engine.c
  * @brief NPC decision engine — NPCs make choices, history unfolds
  */
-#include "../../include/core/npc_engine.h"
-#include "../../include/common.h"
+#include "core/npc_engine.h"
+#include "common.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

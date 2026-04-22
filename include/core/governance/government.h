@@ -9,15 +9,35 @@
  *
  * No government structure is inherently "bad" — metrics like citizen
  * happiness, stability, and governance ranking are measured independently.
+ *
+ * This is the governance HUB — all governance subsystems are owned here
+ * and ticked from civ_government_update.
  */
 #ifndef CIVILIZATION_GOVERNMENT_H
 #define CIVILIZATION_GOVERNMENT_H
 
 #include "../../common.h"
 #include "../../types.h"
-#include "institution.h"
-#include "legislative_system.h"
-#include "subdivision.h"
+#include "branches/council.h"
+#include "branches/executive.h"
+#include "branches/judiciary.h"
+#include "branches/legislative.h"
+#include "branches/religious_body.h"
+#include "evolution/governance_evolution.h"
+#include "institutions/civil_service.h"
+#include "institutions/institution.h"
+#include "institutions/ministry.h"
+#include "interaction/conversation.h"
+#include "interaction/interaction.h"
+#include "interaction/notebook.h"
+#include "legal/constitution.h"
+#include "legal/legal_status.h"
+#include "legal/rights.h"
+#include "metrics/societal_metrics.h"
+#include "political/corruption.h"
+#include "political/elections.h"
+#include "political/political_violence.h"
+#include "territorial/subdivision.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -27,6 +47,9 @@ extern "C" {
 #define CIV_POSITION_ROLE_MAX   128
 #define CIV_POSITION_SELECT_MAX 32
 #define CIV_POSITION_TERM_MAX   32
+
+/* Budget allocation categories matching civ_budget_category_t */
+#define CIV_GOV_BUDGET_CATEGORIES 9
 
 /* ── Political position — one role in the government hierarchy ────── */
 typedef struct {
@@ -63,7 +86,7 @@ typedef enum {
   CIV_STATURE_HEGEMON,
 } civ_stature_tier_t;
 
-/* ── Government structure ─────────────────────────────────────────── */
+/* ── Government structure — the governance HUB ────────────────────── */
 typedef struct civ_government {
   char   id[STRING_SHORT_LEN];
   char   name[STRING_MEDIUM_LEN];
@@ -81,11 +104,38 @@ typedef struct civ_government {
   float legitimacy;
   float efficiency;
 
-  /* Subsystems */
-  civ_institution_manager_t  *institution_manager;
-  civ_subdivision_manager_t  *subdivision_manager;
-  civ_legislative_manager_t  *legislative_manager;
-  float                       legislative_threshold;
+  /* ── Governance subsystems (all ticked from civ_government_update) ── */
+  civ_constitution_t           *constitution;        /* dynamic rule-of-law foundation */
+
+  /* ── Branches (all optional — NULL means "doesn't exist here") ── */
+  civ_executive_t              *executive;           /* president, PM, monarch */
+  civ_legislative_manager_t    *legislative_manager; /* parliament, senate, assembly */
+  civ_judiciary_t              *judiciary;           /* courts, tribunals */
+  civ_council_t                *council;             /* collective: junta, presidium, elders */
+  civ_religious_body_t         *religious_body;      /* theocracy, guardian council */
+
+  civ_institution_manager_t    *institution_manager;
+  civ_subdivision_manager_t    *subdivision_manager;
+  civ_corruption_engine_t      *corruption_engine;
+  civ_election_system_t        *election_system;
+  civ_political_violence_t     *political_violence;
+  civ_ministry_manager_t       *ministry_manager;
+  civ_civil_service_t          *civil_service;
+  civ_rights_declaration_t     *rights;
+  civ_notebook_t               *notebook;
+  civ_governance_state_t        evolution_state;    /* embedded — traits + decisions */
+  civ_societal_health_t         societal_health;    /* embedded — dashboard snapshot */
+
+  /* Budget allocation across governance functions (from budget module) */
+  float budget_allocations[CIV_GOV_BUDGET_CATEGORIES];
+  float legislative_threshold;
+
+  /* Legislative session cycle */
+  int   turns_since_last_session;
+
+  /* Cross-module cached values (updated each tick from game.c params) */
+  float faction_support;
+  int   faction_count;
 
   civ_stature_tier_t stature_tier;
 } civ_government_t;
@@ -106,9 +156,25 @@ void civ_government_recompute_profile(civ_government_t *gov);
 /* Get a descriptive proximity label (computed, not fixed) */
 const char *civ_government_proximity_label(const civ_government_t *gov);
 
-float civ_government_collect_taxes(civ_government_t *gov);
-void  civ_government_update(civ_government_t *gov, float time_delta);
+/* Main tick — propagates to ALL governance subsystems.
+ * Cross-module params enable dynamic behavior without hardcoding.
+ * Pass 0/NULL for systems that don't exist yet. */
+void  civ_government_update(civ_government_t *gov, float time_delta,
+                            int total_population, float culture_level,
+                            float total_budget, float education_level,
+                            float economic_confidence, float literacy_rate,
+                            float faction_support,     /* avg faction support 0-1 */
+                            int   faction_count);       /* number of active factions */
 float civ_government_get_stability(const civ_government_t *gov);
+
+/* ── Corruption (single source of truth) ──────────────────────────── */
+float civ_government_get_corruption(const civ_government_t *gov);
+
+/* ── Budget integration ────────────────────────────────────────────── */
+void  civ_government_set_budget(civ_government_t *gov, int category, float amount);
+
+/* ── Legislative trigger ──────────────────────────────────────────── */
+void  civ_government_hold_session(civ_government_t *gov);
 
 #ifdef __cplusplus
 }

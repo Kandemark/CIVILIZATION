@@ -3,7 +3,7 @@
  * @brief Implementation of Perlin noise (2D and 3D)
  */
 
-#include "../../include/utils/noise.h"
+#include "utils/noise.h"
 #include <math.h>
 
 /* Permutation table for Perlin noise */

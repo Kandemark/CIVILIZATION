@@ -3,7 +3,7 @@
  * @brief Structured journaling database implementation.
  */
 
-#include "../../../include/core/data/history_db.h"
+#include "core/data/history_db.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

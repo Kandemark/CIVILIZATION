@@ -3,7 +3,7 @@
  * @brief Player profile and per-profile save-slot management.
  */
 
-#include "../../include/core/profile.h"
+#include "core/profile.h"
 #include <SDL3/SDL.h>
 #include <stdio.h>
 #include <stdlib.h>

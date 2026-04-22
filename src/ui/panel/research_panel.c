@@ -2,9 +2,9 @@
  * @file research_panel.c
  * @brief Technology domain index display — no tech tree, continuous indices
  */
-#include "../../../include/ui/panel/research_panel.h"
-#include "../../../include/core/technology/innovation_system.h"
-#include "../../../include/engine/renderer.h"
+#include "ui/panel/research_panel.h"
+#include "core/technology/innovation_system.h"
+#include "engine/renderer.h"
 #include <stdio.h>
 
 void civ_research_panel_render(SDL_Renderer *r, civ_game_t *game,

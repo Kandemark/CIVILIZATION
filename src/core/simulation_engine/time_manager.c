@@ -3,8 +3,8 @@
  * @brief Implementation of the time management system
  */
 
-#include "../../../include/core/simulation_engine/time_manager.h"
-#include "../../../include/common.h"
+#include "core/simulation_engine/time_manager.h"
+#include "common.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdarg.h>

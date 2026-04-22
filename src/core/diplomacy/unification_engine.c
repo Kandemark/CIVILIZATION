@@ -3,8 +3,8 @@
  * @brief Implementation of civilizational mergers
  */
 
-#include "../../../include/core/diplomacy/unification_engine.h"
-#include "../../../include/common.h"
+#include "core/diplomacy/unification_engine.h"
+#include "common.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>

@@ -7,9 +7,9 @@
  * starting indices. Political borders are rendered where adjacent tiles
  * have different nation owners.
  */
-#include "../../../include/core/world/nation.h"
-#include "../../../include/core/constitution.h"
-#include "../../../include/common.h"
+#include "core/world/nation.h"
+#include "core/constitution.h"
+#include "common.h"
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>

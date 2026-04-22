@@ -3,8 +3,8 @@
  * @brief Implementation of memory pool allocator
  */
 
-#include "../../include/utils/memory_pool.h"
-#include "../../include/common.h"
+#include "utils/memory_pool.h"
+#include "common.h"
 #include <stdlib.h>
 #include <string.h>
 

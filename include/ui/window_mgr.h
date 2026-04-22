@@ -9,8 +9,8 @@
 #ifndef CIV_UI_WINDOW_MGR_H
 #define CIV_UI_WINDOW_MGR_H
 
-#include "../../include/engine/font.h"
-#include "../../include/engine/input.h"
+#include "../engine/font.h"
+#include "../engine/input.h"
 #include <SDL3/SDL.h>
 #include <stdbool.h>
 #include <stdint.h>

@@ -2,8 +2,8 @@
  * @file innovation_system.c
  * @brief Continuous technology indices — no discovery caps, infinite advancement
  */
-#include "../../../include/core/technology/innovation_system.h"
-#include "../../../include/common.h"
+#include "core/technology/innovation_system.h"
+#include "common.h"
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>

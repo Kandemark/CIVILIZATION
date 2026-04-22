@@ -3,10 +3,10 @@
  * @brief Implementation of Game Events
  */
 
-#include "../../../include/core/events/game_events.h"
-#include "../../../include/common.h"
-#include "../../../include/core/events/event_manager.h"
-#include "../../../include/core/game.h"
+#include "core/events/game_events.h"
+#include "common.h"
+#include "core/events/event_manager.h"
+#include "core/game.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -38,8 +38,8 @@ void civ_trigger_economic_crisis(civ_game_t *game) {
   }
 
   /* 4. Legislative Response */
-  if (game->legislative_manager) {
-    // civ_legislative_propose_bill(game->legislative_manager, "Austerity Act",
+  if (game->government && game->government->legislative_manager) {
+    // civ_legislative_propose_bill(game->government->legislative_manager, "Austerity Act",
     // ...);
   }
 }

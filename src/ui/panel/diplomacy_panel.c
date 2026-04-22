@@ -1,6 +1,6 @@
-#include "../../../include/ui/panel/diplomacy_panel.h"
-#include "../../../include/core/diplomacy/relations.h"
-#include "../../../include/engine/renderer.h"
+#include "ui/panel/diplomacy_panel.h"
+#include "core/diplomacy/relations.h"
+#include "engine/renderer.h"
 #include <stdio.h>
 #include <string.h>
 

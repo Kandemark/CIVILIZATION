@@ -3,8 +3,8 @@
  * @brief Implementation of population manager
  */
 
-#include "../../../include/core/population/population_manager.h"
-#include "../../../include/common.h"
+#include "core/population/population_manager.h"
+#include "common.h"
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>

@@ -3,8 +3,8 @@
  * @brief Implementation of conquest mechanics
  */
 
-#include "../../../include/core/military/conquest.h"
-#include "../../../include/common.h"
+#include "core/military/conquest.h"
+#include "common.h"
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>

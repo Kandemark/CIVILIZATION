@@ -3,8 +3,8 @@
  * @brief Implementation of cultural assimilation tracking
  */
 
-#include "../../../include/core/culture/cultural_assimilation.h"
-#include "../../../include/common.h"
+#include "core/culture/cultural_assimilation.h"
+#include "common.h"
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>

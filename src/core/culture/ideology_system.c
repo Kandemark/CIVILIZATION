@@ -3,7 +3,7 @@
  * @brief Implementation of Emergent Ideology System
  */
 
-#include "../../../include/core/culture/ideology_system.h"
+#include "core/culture/ideology_system.h"
 
 civ_ideology_system_t *civ_ideology_system_create(void) {
   civ_ideology_system_t *system = CIV_MALLOC(sizeof(civ_ideology_system_t));

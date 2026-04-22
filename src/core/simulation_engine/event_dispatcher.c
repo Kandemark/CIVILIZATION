@@ -3,8 +3,8 @@
  * @brief Implementation of event dispatcher
  */
 
-#include "../../../include/core/simulation_engine/event_dispatcher.h"
-#include "../../../include/common.h"
+#include "core/simulation_engine/event_dispatcher.h"
+#include "common.h"
 #include <stdlib.h>
 #include <string.h>
 

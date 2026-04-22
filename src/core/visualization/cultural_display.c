@@ -3,8 +3,8 @@
  * @brief Implementation of cultural visualization
  */
 
-#include "../../../include/core/visualization/cultural_display.h"
-#include "../../../include/common.h"
+#include "core/visualization/cultural_display.h"
+#include "common.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>

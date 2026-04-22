@@ -2,8 +2,8 @@
  * @file map_view.c
  * @brief Implementation of map view system
  */
-#include "../../../include/core/world/map_view.h"
-#include "../../../include/common.h"
+#include "core/world/map_view.h"
+#include "common.h"
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
 #include <math.h>

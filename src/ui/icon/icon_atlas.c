@@ -1,5 +1,5 @@
-#include "../../../include/ui/icon/icon_atlas.h"
-#include "../../../include/engine/renderer.h"
+#include "ui/icon/icon_atlas.h"
+#include "engine/renderer.h"
 #include <stdlib.h>
 #include <string.h>
 

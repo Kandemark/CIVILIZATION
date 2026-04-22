@@ -5,12 +5,12 @@
  * The Earth map (or procedural atlas) was loaded during civ_game_initialize().
  * This scene shows a brief preview and lets the player confirm before proceeding.
  */
-#include "../../../include/core/world/map_generator.h"
-#include "../../../include/display/camera.h"
-#include "../../../include/engine/font.h"
-#include "../../../include/engine/renderer.h"
-#include "../../../include/ui/scene.h"
-#include "../../../include/ui/ui_common.h"
+#include "core/world/map_generator.h"
+#include "display/camera.h"
+#include "engine/font.h"
+#include "engine/renderer.h"
+#include "ui/scene.h"
+#include "ui/ui_common.h"
 #include <SDL3/SDL.h>
 #include <math.h>
 #include <stdio.h>

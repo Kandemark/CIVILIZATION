@@ -5,15 +5,15 @@
  * The player answers scenario questions. Each answer maps to skills.
  * After all questions, the closest background is assigned automatically.
  */
-#include "../../../include/core/character.h"
-#include "../../../include/core/profile.h"
-#include "../../../include/core/world/map_generator.h"
-#include "../../../include/display/camera.h"
-#include "../../../include/display/theme.h"
-#include "../../../include/engine/font.h"
-#include "../../../include/engine/renderer.h"
-#include "../../../include/ui/scene.h"
-#include "../../../include/ui/ui_common.h"
+#include "core/character.h"
+#include "core/profile.h"
+#include "core/world/map_generator.h"
+#include "display/camera.h"
+#include "display/theme.h"
+#include "engine/font.h"
+#include "engine/renderer.h"
+#include "ui/scene.h"
+#include "ui/ui_common.h"
 #include <SDL3/SDL.h>
 #include <stdio.h>
 

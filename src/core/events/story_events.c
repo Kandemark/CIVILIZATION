@@ -3,8 +3,8 @@
  * @brief Implementation of early-game narrative triggers
  */
 
-#include "../../../include/core/events/story_events.h"
-#include "../../../include/common.h"
+#include "core/events/story_events.h"
+#include "common.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>

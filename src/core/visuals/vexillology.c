@@ -3,8 +3,8 @@
  * @brief Implementation of multi-layer flag design
  */
 
-#include "../../../include/core/visuals/vexillology.h"
-#include "../../../include/common.h"
+#include "core/visuals/vexillology.h"
+#include "common.h"
 #include <stdio.h>
 #include <string.h>
 

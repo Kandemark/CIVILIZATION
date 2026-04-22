@@ -2,8 +2,8 @@
  * @file constitution.c
  * @brief Constitution system — per-nation rules governing all actions
  */
-#include "../../include/core/constitution.h"
-#include "../../include/common.h"
+#include "core/constitution.h"
+#include "common.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

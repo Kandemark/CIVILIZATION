@@ -3,7 +3,7 @@
  * @brief Implementation of the Wonders system
  */
 
-#include "../../../include/core/world/wonders.h"
+#include "core/world/wonders.h"
 #include <stdlib.h>
 #include <string.h>
 

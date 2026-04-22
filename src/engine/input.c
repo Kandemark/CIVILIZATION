@@ -3,7 +3,7 @@
  * @brief SDL3 input handling implementation
  */
 
-#include "../../include/engine/input.h"
+#include "engine/input.h"
 #include <string.h>
 
 void civ_input_init(civ_input_state_t *state) {

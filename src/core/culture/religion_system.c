@@ -3,8 +3,8 @@
  * @brief Implementation of emergent religions
  */
 
-#include "../../../include/core/culture/religion_system.h"
-#include "../../../include/common.h"
+#include "core/culture/religion_system.h"
+#include "common.h"
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>

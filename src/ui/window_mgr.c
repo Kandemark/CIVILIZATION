@@ -2,9 +2,9 @@
  * @file window_mgr.c
  * @brief UI window manager implementation
  */
-#include "../../include/ui/window_mgr.h"
-#include "../../include/display/theme.h"
-#include "../../include/engine/renderer.h"
+#include "ui/window_mgr.h"
+#include "display/theme.h"
+#include "engine/renderer.h"
 #include <stdlib.h>
 #include <string.h>
 

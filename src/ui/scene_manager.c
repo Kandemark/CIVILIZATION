@@ -1,4 +1,4 @@
-#include "../../include/ui/scene.h"
+#include "ui/scene.h"
 #include <SDL3/SDL.h>
 #include <stddef.h>
 

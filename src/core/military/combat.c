@@ -3,8 +3,8 @@
  * @brief Implementation of combat system
  */
 
-#include "../../../include/core/military/combat.h"
-#include "../../../include/common.h"
+#include "core/military/combat.h"
+#include "common.h"
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>

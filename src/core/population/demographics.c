@@ -3,8 +3,8 @@
  * @brief Implementation of demographics system
  */
 
-#include "../../../include/core/population/demographics.h"
-#include "../../../include/common.h"
+#include "core/population/demographics.h"
+#include "common.h"
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>

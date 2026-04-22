@@ -3,8 +3,8 @@
  * @brief Implementation of military units
  */
 
-#include "../../../include/core/military/units.h"
-#include "../../../include/common.h"
+#include "core/military/units.h"
+#include "common.h"
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>

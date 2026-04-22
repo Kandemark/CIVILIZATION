@@ -3,8 +3,8 @@
  * @brief Implementation of cultural diffusion system
  */
 
-#include "../../../include/core/culture/cultural_diffusion.h"
-#include "../../../include/common.h"
+#include "core/culture/cultural_diffusion.h"
+#include "common.h"
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>

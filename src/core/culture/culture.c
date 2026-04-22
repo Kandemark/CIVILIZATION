@@ -3,8 +3,8 @@
  * @brief Implementation of main culture system
  */
 
-#include "../../../include/core/culture/culture.h"
-#include "../../../include/common.h"
+#include "core/culture/culture.h"
+#include "common.h"
 
 civ_culture_system_t* civ_culture_system_create(void) {
     civ_culture_system_t* culture = (civ_culture_system_t*)CIV_MALLOC(sizeof(civ_culture_system_t));

@@ -3,8 +3,8 @@
  * @brief Implementation of custom governance
  */
 
-#include "../../../include/core/governance/custom_governance.h"
-#include "../../../include/common.h"
+#include "core/governance/custom_governance.h"
+#include "common.h"
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>

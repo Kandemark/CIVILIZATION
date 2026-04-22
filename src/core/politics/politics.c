@@ -3,8 +3,8 @@
  * @brief Implementation of main politics system
  */
 
-#include "../../../include/core/politics/politics.h"
-#include "../../../include/common.h"
+#include "core/politics/politics.h"
+#include "common.h"
 
 civ_politics_system_t* civ_politics_system_create(void) {
     civ_politics_system_t* politics = (civ_politics_system_t*)CIV_MALLOC(sizeof(civ_politics_system_t));

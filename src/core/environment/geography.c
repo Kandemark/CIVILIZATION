@@ -4,8 +4,8 @@
  */
 
 #define _USE_MATH_DEFINES
-#include "../../../include/core/environment/geography.h"
-#include "../../../include/common.h"
+#include "core/environment/geography.h"
+#include "common.h"
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>

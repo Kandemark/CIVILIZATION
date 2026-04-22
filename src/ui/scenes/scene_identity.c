@@ -6,13 +6,13 @@
  * defines their full identity: nationality, age, birthplace state.
  * A national ID card is previewed before entering the world.
  */
-#include "../../../include/core/character.h"
-#include "../../../include/core/profile.h"
-#include "../../../include/engine/font.h"
-#include "../../../include/engine/renderer.h"
-#include "../../../include/ui/scene.h"
-#include "../../../include/ui/ui_common.h"
-#include "../../../include/ui/widget/button.h"
+#include "core/character.h"
+#include "core/profile.h"
+#include "engine/font.h"
+#include "engine/renderer.h"
+#include "ui/scene.h"
+#include "ui/ui_common.h"
+#include "ui/widget/button.h"
 #include <SDL3/SDL.h>
 #include <stdio.h>
 #include <string.h>

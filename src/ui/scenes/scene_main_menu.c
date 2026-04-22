@@ -2,14 +2,14 @@
  * @file scene_main_menu.c
  * @brief Main menu — new widget-based implementation
  */
-#include "../../../include/core/game.h"
-#include "../../../include/core/profile.h"
-#include "../../../include/display/theme.h"
-#include "../../../include/engine/font.h"
-#include "../../../include/engine/renderer.h"
-#include "../../../include/ui/scene.h"
-#include "../../../include/ui/ui_common.h"
-#include "../../../include/ui/widget/button.h"
+#include "core/game.h"
+#include "core/profile.h"
+#include "display/theme.h"
+#include "engine/font.h"
+#include "engine/renderer.h"
+#include "ui/scene.h"
+#include "ui/ui_common.h"
+#include "ui/widget/button.h"
 #include <SDL3/SDL.h>
 #include <stdio.h>
 

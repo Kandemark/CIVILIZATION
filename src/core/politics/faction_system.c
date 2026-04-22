@@ -3,8 +3,8 @@
  * @brief Implementation of faction system
  */
 
-#include "../../../include/core/politics/faction_system.h"
-#include "../../../include/common.h"
+#include "core/politics/faction_system.h"
+#include "common.h"
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>

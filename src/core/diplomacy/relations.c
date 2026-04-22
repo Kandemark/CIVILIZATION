@@ -3,8 +3,8 @@
  * @brief Implementation of diplomacy system
  */
 
-#include "../../../include/core/diplomacy/relations.h"
-#include "../../../include/common.h"
+#include "core/diplomacy/relations.h"
+#include "common.h"
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
