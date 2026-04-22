@@ -1,6 +1,7 @@
 #include "core/character.h"
 #include "core/profile.h"
 #include "core/military/combat.h"
+#include "ui/nuklear_ui.h"
 #include "core/time_engine.h"
 #include "core/world/nation.h"
 #include "core/world/political_borders.h"
@@ -897,8 +898,152 @@ static void render(SDL_Renderer *renderer, int win_w, int win_h,
                              win_w, win_h);
     render_minimap_layer(renderer, game);
     render_city_labels(renderer, game);
-    render_view_selector(renderer, input);
-    render_nation_detail_panel(renderer, game, input);
+
+    /* ── Nuklear UI overlay ───────────────────────── */
+    {
+      struct nk_context *nk = g_nk_ctx;
+      if (nk) {
+        float bal = (game->wallet.count > 0 && game->market)
+            ? civ_wallet_total(&game->wallet, game->market) : 0.0f;
+        float lat = 90.0f - (cam.y / (float)cam.map_height) * 180.0f;
+        float lon = (cam.x / (float)cam.map_width) * 360.0f - 180.0f;
+        while (lon < -180.0f) lon += 360.0f; while (lon > 180.0f) lon -= 360.0f;
+
+        /* Top bar — thin, anchored */
+        if (nk_begin(nk, "HUD", nk_rect(0, 0, (float)win_w, 34),
+                     NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER)) {
+          nk_layout_row_dynamic(nk, 34, 4);
+          /* Time */
+          char time_buf[64];
+          if (game->time_engine)
+            civ_time_engine_format_hud((civ_time_engine_t*)game->time_engine, time_buf, sizeof(time_buf));
+          else snprintf(time_buf, sizeof(time_buf), "Turn %d", game->current_turn);
+          nk_label(nk, time_buf, NK_TEXT_CENTERED);
+
+          /* Current view */
+          const char *vnames[] = {"Political","Geographical","Economic","Demographical","Cultural"};
+          if (nk_button_label(nk, vnames[(int)current_map_view]))
+            current_map_view = (civ_map_view_type_t)(((int)current_map_view + 1) % 5);
+
+          /* Wallet + coords */
+          char coord_buf[64];
+          snprintf(coord_buf, sizeof(coord_buf), "$%.0f  %.0f%c %.0f%c",
+              bal, fabsf(lat), lat>=0?'N':'S', fabsf(lon), lon>=0?'E':'W');
+          nk_label(nk, coord_buf, NK_TEXT_RIGHT);
+          nk_spacing(nk, 1);
+        }
+        nk_end(nk);
+
+        /* Left sidebar */
+        if (nk_begin(nk, "Nav", nk_rect(0, 34, 220, (float)win_h - 34),
+                     NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER)) {
+          nk_layout_row_dynamic(nk, 22, 1);
+          nk_label(nk, "DOMINION", NK_TEXT_CENTERED);
+          int nav_n = game->player_role.nav_count;
+          for (int i = 0; i < nav_n && i < 14; i++) {
+            civ_nav_screen_t ns = (civ_nav_screen_t)game->player_role.nav_screens[i];
+            if (ns < 0) continue;
+            const char *label = civ_nav_screen_label(ns);
+            nk_layout_row_dynamic(nk, 24, 1);
+            bool active = false;
+            switch (ns) {
+            case CIV_NAV_MAP: active = (current_screen == SCR_MAP); break;
+            case CIV_NAV_ECONOMY: active = (current_screen == SCR_ECONOMY); break;
+            case CIV_NAV_GOVERNANCE: active = (current_screen == SCR_GOVERNANCE); break;
+            case CIV_NAV_DIPLOMACY: active = (current_screen == SCR_DIPLOMACY); break;
+            case CIV_NAV_DASHBOARD: active = (current_screen == SCR_DASHBOARD); break;
+            case CIV_NAV_WORK: active = (current_screen == SCR_WORK); break;
+            case CIV_NAV_FINANCE: active = (current_screen == SCR_FINANCE); break;
+            case CIV_NAV_HOUSING: active = (current_screen == SCR_HOUSING); break;
+            case CIV_NAV_EDUCATION: active = (current_screen == SCR_EDUCATION); break;
+            case CIV_NAV_NETWORK: active = (current_screen == SCR_NETWORK); break;
+            case CIV_NAV_POLITICS: active = (current_screen == SCR_POLITICS); break;
+            case CIV_NAV_HEALTH: active = (current_screen == SCR_HEALTH); break;
+            case CIV_NAV_CONSTITUTION: active = (current_screen == SCR_CONSTITUTION); break;
+            default: break;
+            }
+            if (active) nk_button_set_behavior(nk, NK_BUTTON_DEFAULT);
+            if (nk_button_label(nk, label)) {
+              switch (ns) {
+              case CIV_NAV_MAP: current_screen = SCR_MAP; break;
+              case CIV_NAV_ECONOMY: current_screen = SCR_ECONOMY; break;
+              case CIV_NAV_GOVERNANCE: current_screen = SCR_GOVERNANCE; break;
+              case CIV_NAV_DIPLOMACY: current_screen = SCR_DIPLOMACY; break;
+              case CIV_NAV_DASHBOARD: current_screen = SCR_DASHBOARD; break;
+              case CIV_NAV_WORK: current_screen = SCR_WORK; break;
+              case CIV_NAV_FINANCE: current_screen = SCR_FINANCE; break;
+              case CIV_NAV_HOUSING: current_screen = SCR_HOUSING; break;
+              case CIV_NAV_EDUCATION: current_screen = SCR_EDUCATION; break;
+              case CIV_NAV_NETWORK: current_screen = SCR_NETWORK; break;
+              case CIV_NAV_POLITICS: current_screen = SCR_POLITICS; break;
+              case CIV_NAV_HEALTH: current_screen = SCR_HEALTH; break;
+              case CIV_NAV_CONSTITUTION: current_screen = SCR_CONSTITUTION; break;
+              default: break;
+              }
+            }
+            if (active) nk_button_set_behavior(nk, NK_BUTTON_DEFAULT);
+          }
+          /* Wallet at bottom */
+          nk_layout_row_dynamic(nk, 18, 1);
+          { char wbuf[48]; snprintf(wbuf, sizeof(wbuf), "Balance: $%.0f", bal);
+            nk_label(nk, wbuf, NK_TEXT_CENTERED); }
+        }
+        nk_end(nk);
+
+        /* Nation detail popup */
+        if (show_nation_detail && selected_nation_id[0] && game->nation_manager) {
+          civ_nation_t *nat = civ_nation_get_by_id(
+              (civ_nation_manager_t*)game->nation_manager, selected_nation_id);
+          if (nat) {
+            if (nk_begin(nk, nat->name, nk_rect(240, 50, 360, 340),
+                         NK_WINDOW_BORDER|NK_WINDOW_TITLE|NK_WINDOW_MOVABLE|NK_WINDOW_CLOSABLE)) {
+              nk_layout_row_dynamic(nk, 20, 1);
+              { char buf[128];
+                snprintf(buf, sizeof(buf), "Pop: %lldM  GDP: $%.0fM  +%.1f%%",
+                    nat->population/1000000, nat->economy.gdp, nat->economy.gdp_growth*100);
+                nk_label(nk, buf, NK_TEXT_LEFT); }
+              nk_layout_row_dynamic(nk, 18, 1);
+              { char buf[128];
+                snprintf(buf, sizeof(buf), "Unemp: %.1f%%  Infl: %.1f%%  Food: %.0fM",
+                    nat->economy.unemployment*100, nat->economy.inflation*100, nat->economy.food_production/1000000);
+                nk_label(nk, buf, NK_TEXT_LEFT); }
+              nk_layout_row_dynamic(nk, 18, 1);
+              { char buf[128];
+                snprintf(buf, sizeof(buf), "Gov: %s  ISO: %s",
+                    civ_government_proximity_label(nat->government), nat->iso_a3);
+                nk_label(nk, buf, NK_TEXT_LEFT); }
+              nk_layout_row_dynamic(nk, 18, 1);
+              { char buf[128];
+                snprintf(buf, sizeof(buf), "Indices: T%+d E%+d M%+d C%+d",
+                    nat->tech_index, nat->economic_index, nat->military_index, nat->cultural_index);
+                nk_label(nk, buf, NK_TEXT_LEFT); }
+              /* Close button pressed */
+              struct nk_rect bounds = nk_window_get_bounds(nk);
+              (void)bounds;
+              /* Action buttons */
+              nk_layout_row_dynamic(nk, 30, 3);
+              if (nk_button_label(nk, "Governance")) {
+                current_screen = SCR_GOVERNANCE; show_nation_detail = false; }
+              if (nk_button_label(nk, "Diplomacy")) {
+                current_screen = SCR_DIPLOMACY; show_nation_detail = false; }
+              if (nk_button_label(nk, "Economy")) {
+                current_screen = SCR_ECONOMY; show_nation_detail = false; }
+            } else { show_nation_detail = false; }
+            nk_end(nk);
+          }
+        }
+
+        /* Toast notifications */
+        for (int i = toast_count - 1; i >= 0; i--) {
+          if (nk_begin(nk, "Toast", nk_rect((float)(win_w/2 - 200), (float)(win_h - 80 - i*34), 400, 28),
+                       NK_WINDOW_NO_SCROLLBAR)) {
+            nk_layout_row_dynamic(nk, 22, 1);
+            nk_label(nk, toasts[i].msg, NK_TEXT_CENTERED);
+          }
+          nk_end(nk);
+        }
+      }
+    }
   } else {
     /* Full-area screen background — covers everything below top bar */
     int sx = 0, sy = 34, sw = win_w, sh = win_h - sy - 50;
