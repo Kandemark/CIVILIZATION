@@ -9,8 +9,11 @@
 #define NK_SDL_RENDERER_IMPLEMENTATION
 #include "ui/nuklear_ui.h"
 #include "display/theme.h"
+#include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
+
+static bool nk_ready = false;
 
 /* Clipboard stubs — must be after nuklear.h include for nk_handle type */
 static void nk_clip_copy(nk_handle usr, const char *text, int len)
@@ -63,25 +66,76 @@ struct nk_context *nk_ui_init(SDL_Window *win, SDL_Renderer *renderer) {
 
     nk_buffer_init_default(&nksdl.dev.cmds);
 
-    /* Build font atlas with default font */
+    /* Build font atlas */
     nk_font_atlas_init_default(&nksdl.atlas);
     nk_font_atlas_begin(&nksdl.atlas);
-    /* Use built-in default font (no TTF needed for basic usage) */
+
+    /* Try loading a system TTF via SDL_RWops */
+    struct nk_font *nk_font = NULL;
+    const char *ttf_paths[] = {
+        "/usr/share/fonts/liberation/LiberationSans-Regular.ttf",
+        "/usr/share/fonts/liberation/LiberationMono-Regular.ttf",
+        NULL
+    };
+    for (int i = 0; ttf_paths[i] && !nk_font; i++) {
+        SDL_IOStream *io = SDL_IOFromFile(ttf_paths[i], "rb");
+        if (!io) { fprintf(stderr, "[NK] Cannot open: %s\n", ttf_paths[i]); continue; }
+        Sint64 sz = SDL_GetIOSize(io);
+        if (sz <= 0) { SDL_CloseIO(io); continue; }
+        void *ttf_data = SDL_malloc((size_t)sz);
+        if (!ttf_data) { SDL_CloseIO(io); continue; }
+        SDL_ReadIO(io, ttf_data, (size_t)sz);
+        SDL_CloseIO(io);
+
+        struct nk_font_config cfg = nk_font_config(14.0f);
+        cfg.range = nk_font_default_glyph_ranges();
+        cfg.oversample_h = 2; cfg.oversample_v = 2;
+        nk_font = nk_font_atlas_add_from_memory(&nksdl.atlas, ttf_data, (int)sz, 14.0f, &cfg);
+        if (nk_font) fprintf(stderr, "[NK] Loaded TTF: %s\n", ttf_paths[i]);
+        SDL_free(ttf_data);
+    }
+
+    /* Fallback: built-in default font */
+    if (!nk_font) {
+        fprintf(stderr, "[NK] Trying built-in default font...\n");
+        struct nk_font_config cfg = nk_font_config(13.0f);
+        cfg.range = nk_font_default_glyph_ranges();
+        nk_font = nk_font_atlas_add_default(&nksdl.atlas, 13.0f, &cfg);
+    }
+
     const void *image; int w, h;
     image = nk_font_atlas_bake(&nksdl.atlas, &w, &h, NK_FONT_ATLAS_RGBA32);
-    device_upload_atlas(image, w, h);
-    nk_font_atlas_end(&nksdl.atlas, nk_handle_id((int)nksdl.dev.font_tex),
-                      &nksdl.dev.tex_null);
+    if (image && w > 0 && h > 0) {
+        device_upload_atlas(image, w, h);
+        nk_font_atlas_end(&nksdl.atlas, nk_handle_id((int)nksdl.dev.font_tex),
+                          &nksdl.dev.tex_null);
+        fprintf(stderr, "[NK] Atlas end OK. font_count=%d default_font=%p\n",
+            nksdl.atlas.font_num, (void*)nksdl.atlas.default_font);
+    } else {
+        nk_font_atlas_end(&nksdl.atlas, nk_handle_id(0), &nksdl.dev.tex_null);
+        fprintf(stderr, "[NK] Atlas bake returned NULL image (w=%d h=%d)\n", w, h);
+    }
 
-    if (nksdl.atlas.default_font)
+    if (nk_font) {
+        nk_style_set_font(&nksdl.ctx, &nk_font->handle);
+        nk_ui_theme_dominion(&nksdl.ctx);
+        nk_ready = true;
+        fprintf(stderr, "[NK] Init OK — using TTF font\n");
+    } else if (nksdl.atlas.default_font) {
         nk_style_set_font(&nksdl.ctx, &nksdl.atlas.default_font->handle);
-
-    nk_ui_theme_dominion(&nksdl.ctx);
+        nk_ui_theme_dominion(&nksdl.ctx);
+        nk_ready = true;
+        fprintf(stderr, "[NK] Init OK — using default font\n");
+    } else {
+        nk_ready = false;
+        fprintf(stderr, "[NK] Init FAILED — no font\n");
+    }
     return &nksdl.ctx;
 }
 
 /* ── Input ────────────────────────────────────────────────────── */
 int nk_ui_handle_event(const SDL_Event *evt) {
+    if (!nk_ready) return 0;
     struct nk_context *ctx = &nksdl.ctx;
     switch (evt->type) {
     case SDL_EVENT_KEY_DOWN:
@@ -162,7 +216,8 @@ int nk_ui_handle_event(const SDL_Event *evt) {
 struct nk_context *g_nk_ctx = NULL;
 
 struct nk_context *nk_ui_begin(void) {
-    if (g_nk_ctx) return g_nk_ctx; /* already begun this frame */
+    if (!nk_ready) return NULL;
+    if (g_nk_ctx) return g_nk_ctx;
     struct nk_context *ctx = &nksdl.ctx;
     Uint64 now = SDL_GetTicks();
     ctx->delta_time_seconds = (float)(now - nksdl.time_of_last_frame) / 1000.0f;
