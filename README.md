@@ -1,137 +1,114 @@
-# DOMINION: An Agnostic Total Grand Strategy Simulation
+# Dominion — Grand Strategy Simulation
 
-A high-fidelity grand strategy simulation built with SDL3. Unlike traditional 4X games, Dominion is an **Agnostic Total Simulation** where success is defined purely by evolutionary growth and functional institutional control — no victory screens, no scripted end-state.
+A high-fidelity grand strategy simulation built with C11 and SDL3. Dominion simulates ~235 real-world nations on a 2048x1024 Earth map with dynamic borders, 22-sector economies, index-based technology progression, and fully dynamic governance systems. No victory screens, no scripted end-states.
 
 ## License
 
-**GNU Affero General Public License v3.0 (AGPLv3)**
+**GNU Affero General Public License v3.0 (AGPLv3)** — see [LICENSE](LICENSE)
 
-Dominion is free and open source software. You may use, modify, and distribute it under the terms of the AGPLv3. This ensures all modifications remain open — even when run as a network service. Commercial sublicensing, proprietary forks, and closed-source redistribution are prohibited by the copyleft terms.
+## Quick Start
 
-To support development, visit: *[fundraising link coming soon]*
+```bash
+# Install dependencies (Arch)
+sudo pacman -S sdl3 sdl3_ttf gcc pkg-config
 
-See [LICENSE](LICENSE) for the full text.
+# Generate Earth data
+python3 tools/generate_earth_map.py
+python3 tools/generate_nations.py
+python3 tools/generate_borders.py
+python3 tools/generate_resources.py
+python3 tools/generate_cities.py
+python3 tools/generate_flags.py
 
----
+# Build and run
+make clean && make release
+./build/dominion
+```
 
-## Core Simulation Philosophy
+## Design Philosophy
 
-- **Agnostic Governance**: No "best" political system. A nation's stability depends on how well its branches (Executive, Legislative, Judicial) function within their own evolving rules and institutions.
-- **Total Social Simulation**: Stability and identity are emergent properties of **Language, Religion, Ideology, and Culture**.
-- **Administrative Hierarchy**: Design your nation from the bottom up. Create States, Colonies, and Provinces with varying levels of autonomy.
-- **Infinite Evolution**: No victory screens. National power is measured by a **7-Tier Global Stature Ranking** (Hegemon to Failed State). Progress is continuous and requires exponential investment.
-- **Dynamic Evolution (No Scripted End-State)**: The simulation is intentionally unscripted — player and AI decisions continuously reshape institutions, borders, and social systems without a fixed scenario endpoint.
-- **Index-Based Progression**: Technology is tracked as progression indices that represent capability/efficiency growth, not a hard-capped predefined tech ladder.
+- **Index-driven, never capped**: Technology, economy, military power are continuous indices, not binary unlocks
+- **Dynamic governance**: No predefined government types — political structure is defined per-nation by constitutional positions
+- **Relative metrics**: Stats show position relative to global averages, not absolute scores
+- **Sector economy**: 18 production and market modules simulating agriculture through war economy
+- **Emergent outcomes**: A one-party state can have 89% citizen happiness if its institutions function well
 
-## Systems Overview
+## Systems
 
-### Sovereign Governance
-- **Modular Branches**: Define custom legislative thresholds, voting methods, and judicial review powers.
-- **Autonomous Legislation**: Branches independently propose and vote on bills, updating the national Constitution in real-time.
-- **The "Hard Path" of Reform**: Systemic changes like a coup or reformation require long-term institutional manipulation.
-
-### Administrative Geography
-- **Subdivisions**: Draw your own borders to create regional governments.
-- **Custom Autonomy**: Manage colonial friction vs. incorporated state stability.
-- **Tactical Laws**: Pass "Official Language Acts" or "Religious Standardizations" to drive assimilation, at the risk of local unrest.
-
-### Integrated Systems
-- **Global Atlas Basemap**: The world uses one deterministic atlas-style baseline (non-Earth), focused on land/water/polar layout so political shifts remain the primary visual signal.
-- **Dynamic Borders**: Territorial expansion driven by both military conquest and cultural diffusion.
-- **Strategic AI**: AI nations evaluate global threats, form stances (Wary, Hostile, Friendly), and respond to proximity-based "Border Friction."
-- **High-Fidelity Rendering**: Hardware-accelerated SDL3 engine with support for large-scale world maps and detailed HUDs.
-
----
+| System | Description |
+|---|---|
+| Map Engine | 2048x1024 equirectangular Earth, 5 switchable views, multi-scale LOD |
+| Nations | ~235 real-world countries with ISO codes, flags, capitals |
+| Economy | 18 modules: agriculture, banking, budget, energy, extraction, financial markets, housing, infrastructure, innovation, labor, land use, macro, manufacturing, policy, taxation, trade (domestic + international), war economy, black market |
+| Governance | Dynamic branches (executive, legislative, judicial, council, religious), constitutional positions |
+| Military | Units, combat resolution, conquest with territory transfer |
+| Diplomacy | Relations, treaties, international organizations |
+| Culture | Identity, language evolution, religion, ideology, cultural diffusion |
+| Resources | 20 resource types (oil, gas, coal, iron, copper, gold, rare earths, lithium, etc.) |
+| UI | 13 retained-mode widgets, theme system, popup windows, toast notifications |
 
 ## Dependencies
 
 | Dependency | Arch Linux | Ubuntu/Debian |
 |---|---|---|
-| SDL3 | `sdl3` | build from source or PPA |
-| SDL3_ttf | `sdl3_ttf` | build from source |
-| GCC / Clang | `gcc` | `build-essential` |
-| CMake (optional) | `cmake` | `cmake` |
+| SDL3 | `sdl3` | Build from [source](https://github.com/libsdl-org/SDL) |
+| SDL3_ttf | `sdl3_ttf` | Build from [source](https://github.com/libsdl-org/SDL_ttf) |
+| GCC | `gcc` | `build-essential` |
 | pkg-config | `pkg-config` | `pkg-config` |
+| Python 3 | `python` | `python3` |
+| numpy (data tools) | `python-numpy` | `python3-numpy` |
 
-### Install on Arch
-
-```bash
-sudo pacman -S sdl3 sdl3_ttf gcc cmake pkg-config
-```
-
-### Install on Ubuntu/Debian
-
-SDL3 is not yet packaged in Debian/Ubuntu. Build from source:
-- [SDL3](https://github.com/libsdl-org/SDL)
-- [SDL3_ttf](https://github.com/libsdl-org/SDL_ttf)
-
----
-
-## Build & Run
-
-### CMake (recommended)
+## Build
 
 ```bash
-cmake -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build
-./build/dominion
+make release          # Optimized build
+make debug            # Debug build with symbols
+make clean && make release  # Full rebuild (required after header changes)
 ```
 
-For debug builds:
+The Makefile does not track `.h` dependencies. Always `make clean` before `make release` after changing headers.
+
+## Data Pipeline
+
+Generated data is **not tracked in git**. Run these in order:
 
 ```bash
-cmake -B build -DCMAKE_BUILD_TYPE=Debug
-cmake --build build
-./build/dominion
+python3 tools/generate_earth_map.py       # data/earth_2048x1024.earth
+python3 tools/generate_nations.py         # data/nations.bin (~235 countries)
+python3 tools/generate_borders.py         # data/earth_borders.bin
+python3 tools/generate_resources.py       # data/resources.bin (20 types, 200+ deposits)
+python3 tools/generate_cities.py          # data/cities.bin (3000+ cities)
+python3 tools/generate_flags.py           # data/flags/ (235 PNG flags)
 ```
-
-### Make
-
-```bash
-make release   # Optimized build
-make debug     # Debug build
-./build/dominion
-```
-
----
 
 ## Architecture
 
 ```
 src/
 ├── engine/          # SDL3 window, rendering, input, fonts
-├── ui/              # Scene-based UI (splash, menus, game view)
-│   └── scenes/      # Individual UI screens
-├── core/            # All simulation systems
-│   ├── governance/  # Government, legislation, institutions, subdivisions
-│   ├── culture/     # Identity, language, religion, diffusion, assimilation
-│   ├── diplomacy/   # Relations, treaties, international organizations
-│   ├── economy/     # Markets, trade, currency, resources
+├── display/         # Camera, theme, animation, layer stack, draw list
+├── ui/
+│   ├── scenes/      # Scene screens (splash → menus → game)
+│   ├── screens/     # Data screens (economy, dashboard, etc.)
+│   ├── widget/      # Retained-mode widgets (13 types)
+│   ├── panel/       # Gameplay panels
+│   ├── graph/       # Charts (bar, line, pie, sparkline)
+│   └── layout/      # Flex + grid layout engine
+├── core/
+│   ├── world/       # Map, nations, borders, territory, settlements
+│   ├── economy/     # 18-module production/market/fiscal simulation
+│   ├── governance/  # Branches, institutions, legal
 │   ├── military/    # Units, combat, conquest
-│   ├── ai/          # Strategic + tactical AI with personality types
-│   ├── world/       # Map generation, territory, dynamic borders, wonders
-│   ├── population/  # Demographics, vitality, race system
-│   ├── politics/    # Factions, rivalry
-│   ├── technology/  # Innovation system (index-based progression)
-│   ├── events/      # Story events, game events, disasters
-│   ├── simulation_engine/  # Time, orchestration, persistence, performance
-│   └── abstracts/   # Soft metrics, shared interfaces
-├── systems/         # Climate, biomes, geography, events, politics
-└── utils/           # Memory pools, config, cache, noise, types
+│   ├── diplomacy/   # Relations, treaties, organizations
+│   ├── culture/     # Language, religion, ideology
+│   ├── population/  # Demographics, vitality
+│   ├── technology/  # Index-based innovation
+│   ├── ai/          # Strategic + tactical AI
+│   └── simulation_engine/  # Time, orchestration, persistence
+├── utils/           # Memory pools, config, cache, noise
+└── tools/           # Python data generation tools
 ```
-
----
 
 ## Contributing
 
-Dominion welcomes contributors. All contributions fall under the AGPLv3 license. Before submitting PRs:
-
-1. Ensure the project builds with `make release`
-2. Follow the existing code style (C11, snake_case for functions, `civ_` prefix for public API)
-3. Keep simulation logic data-driven — avoid hardcoded scenarios
-
----
-
-## License
-
-GNU Affero General Public License v3.0 — see [LICENSE](LICENSE)
+See [CONTRIBUTING.md](CONTRIBUTING.md). All contributions under AGPLv3.
