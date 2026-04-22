@@ -151,6 +151,7 @@ void civ_app_controller_shutdown(civ_app_controller_t *app) {
     return;
 
   civ_scene_manager_shutdown();
+  nk_ui_shutdown();  /* free Nuklear resources before SDL cleans up */
 
   if (app->game) {
     civ_game_destroy(app->game);

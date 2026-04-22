@@ -242,7 +242,7 @@ void nk_ui_end(void) {
     static const struct nk_draw_vertex_layout_element vertex_layout[] = {
         {NK_VERTEX_POSITION, NK_FORMAT_FLOAT, (size_t)offsetof(struct nk_sdl_vertex, position)},
         {NK_VERTEX_TEXCOORD, NK_FORMAT_FLOAT, (size_t)offsetof(struct nk_sdl_vertex, uv)},
-        {NK_VERTEX_COLOR, NK_FORMAT_FLOAT, (size_t)offsetof(struct nk_sdl_vertex, col)},
+        {NK_VERTEX_COLOR, NK_FORMAT_R32G32B32A32_FLOAT, (size_t)offsetof(struct nk_sdl_vertex, col)},
         {NK_VERTEX_LAYOUT_END}
     };
     int vs = sizeof(struct nk_sdl_vertex);
@@ -343,7 +343,10 @@ void nk_ui_theme_dominion(struct nk_context *ctx) {
 }
 
 void nk_ui_shutdown(void) {
-    if (nksdl.dev.font_tex) SDL_DestroyTexture(nksdl.dev.font_tex);
+    /* Don't destroy font_tex — SDL_DestroyRenderer handles it.
+       Destroying it here would cause a double-free when the
+       renderer is destroyed later. */
+    nksdl.dev.font_tex = NULL;
     nk_font_atlas_clear(&nksdl.atlas);
     nk_buffer_free(&nksdl.dev.cmds);
     nk_free(&nksdl.ctx);
