@@ -39,6 +39,9 @@ data/*.bin
 data/*.earth
 data/flags/
 
+# Runtime user data
+saves/
+
 # Python cache
 tools/__pycache__/
 /tmp/
