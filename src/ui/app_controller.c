@@ -7,6 +7,8 @@
 #include <stdio.h>
 #include <string.h>
 
+civ_window_mgr_t *g_window_mgr = NULL;
+
 civ_result_t civ_app_controller_init(civ_app_controller_t *app, int argc,
                                      char **argv) {
   (void)argc;
@@ -57,6 +59,8 @@ civ_result_t civ_app_controller_init(civ_app_controller_t *app, int argc,
   }
 
   civ_scene_manager_init();
+  civ_window_mgr_init(&app->window_mgr);
+  g_window_mgr = &app->window_mgr;
   app->last_frame_time = SDL_GetTicksNS();
   app->running = true;
 
@@ -106,10 +110,14 @@ void civ_app_controller_run(civ_app_controller_t *app) {
     app->input.global_dt = app->delta_time;
 
     civ_scene_manager_update(app->game, &app->input);
+    civ_window_mgr_input(&app->window_mgr, &app->input);
 
     civ_window_clear(app->window, CIV_COLOR_BG_DARK);
     civ_scene_manager_render(civ_window_get_renderer(app->window), win_w, win_h,
                              app->game, &app->input);
+    /* Render popup windows on top of everything */
+    civ_window_mgr_render(&app->window_mgr, civ_window_get_renderer(app->window),
+                          NULL);
     civ_window_present(app->window);
 
     civ_input_end_frame(&app->input);

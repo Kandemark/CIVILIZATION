@@ -4,6 +4,7 @@
 #include "../core/game.h"
 #include "../engine/input.h"
 #include "../engine/window.h"
+#include "window_mgr.h"
 #include <SDL3/SDL.h>
 #include <stdbool.h>
 
@@ -15,6 +16,7 @@ typedef struct {
   civ_window_t *window;
   civ_game_t *game;
   civ_input_state_t input;
+  civ_window_mgr_t  window_mgr;
   Uint64 last_frame_time;
   float delta_time;
   bool running;
