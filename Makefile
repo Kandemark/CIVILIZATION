@@ -51,7 +51,8 @@ WIDGET_SRCS = \
 	src/ui/widget/dropdown.c \
 	src/ui/widget/tab_bar.c \
 	src/ui/widget/modal.c \
-	src/ui/confirm_dialog.c
+	src/ui/confirm_dialog.c \
+	src/ui/nuklear_impl.c
 
 # Layout engine sources
 LAYOUT_SRCS = \

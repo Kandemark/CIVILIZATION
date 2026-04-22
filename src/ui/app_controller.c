@@ -3,6 +3,7 @@
 #include "engine/font.h"
 #include "ui/scene.h"
 #include "ui/ui_common.h"
+#include "ui/nuklear_ui.h"
 #include "utils/paths.h"
 #include <SDL3/SDL.h>
 #include <stdio.h>
@@ -52,6 +53,10 @@ civ_result_t civ_app_controller_init(civ_app_controller_t *app, int argc,
 
   civ_input_init(&app->input);
 
+  /* Initialize Nuklear UI on the SDL renderer */
+  nk_ui_init(civ_window_get_sdl_window(app->window),
+             civ_window_get_renderer(app->window));
+
   app->game = civ_game_create();
   if (!app->game) {
     civ_app_controller_shutdown(app);
@@ -91,6 +96,7 @@ void civ_app_controller_run(civ_app_controller_t *app) {
 
     while (SDL_PollEvent(&event)) {
       civ_input_process_event(&app->input, &event);
+      nk_ui_handle_event(&event);
 
       if (event.type == SDL_EVENT_KEY_DOWN) {
         if (event.key.key == SDLK_F4 &&

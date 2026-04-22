@@ -8,6 +8,7 @@
 #include "engine/font.h"
 #include "engine/renderer.h"
 #include "ui/confirm_dialog.h"
+#include "ui/nuklear_ui.h"
 #include "ui/scene.h"
 #include "ui/ui_common.h"
 #include "ui/widget/button.h"
@@ -235,12 +236,36 @@ static void render(SDL_Renderer *r, int win_w, int win_h,
   if (btn_exit)       civ_widget_button_render(btn_exit, r, font_button);
 
   if (!btn_continue && font_button) {
-    /* Lazy-create buttons (first render, after fonts loaded) */
     btn_continue  = civ_widget_button_create("cont",  0, 0, 260, 40, "CONTINUE");
     btn_new_game  = civ_widget_button_create("new",   0, 0, 260, 40, "NEW GAME");
     btn_load_game = civ_widget_button_create("load",  0, 0, 260, 40, "LOAD GAME");
     btn_logout    = civ_widget_button_create("logout",0, 0, 260, 40, "SWITCH PROFILE");
     btn_exit      = civ_widget_button_create("exit",  0, 0, 260, 40, "EXIT TO DESKTOP");
+  }
+
+  /* ── Nuklear overlay demo ───────────────────────────────── */
+  {
+    struct nk_context *nk = nk_ui_begin();
+    if (nk && nk_begin(nk, "Dominion", nk_rect(400, 100, 320, 380),
+                       NK_WINDOW_BORDER|NK_WINDOW_TITLE|NK_WINDOW_MOVABLE)) {
+      nk_layout_row_dynamic(nk, 36, 1);
+      nk_label(nk, "Grand Strategy Simulation", NK_TEXT_CENTERED);
+      nk_layout_row_dynamic(nk, 8, 1);
+      nk_layout_row_dynamic(nk, 32, 1);
+      if (nk_button_label(nk, "CONTINUE")) {
+        /* handled by widget buttons */
+      }
+      if (nk_button_label(nk, "NEW GAME"))
+        civ_scene_manager_switch(SCENE_IDENTITY);
+      if (nk_button_label(nk, "LOAD GAME") && game->current_profile)
+        open_save_picker(game->current_profile->id);
+      if (nk_button_label(nk, "SWITCH PROFILE"))
+        civ_scene_manager_switch(SCENE_PROFILE_SELECT);
+      if (nk_button_label(nk, "EXIT TO DESKTOP"))
+        civ_confirm_show("Exit Dominion", "Are you sure?");
+    }
+    nk_end(nk);
+    nk_ui_end();
   }
 }
 
