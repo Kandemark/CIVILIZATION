@@ -164,5 +164,7 @@ void civ_app_controller_shutdown(civ_app_controller_t *app) {
   }
 
   civ_font_system_shutdown();
-  SDL_Quit();
+  /* SDL_Quit() crashes due to Nuklear font atlas interaction.
+     Window and renderer are already destroyed above. OS reclaims
+     any remaining SDL resources on process exit. */
 }
