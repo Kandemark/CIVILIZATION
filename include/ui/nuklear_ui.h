@@ -39,6 +39,9 @@ void nk_ui_shutdown(void);
 /* Handle an SDL event (call from event loop). */
 int nk_ui_handle_event(const SDL_Event *event);
 
+/* Global Nuklear context — set by nk_ui_begin(), NULL between frames */
+extern struct nk_context *g_nk_ctx;
+
 /* Convenience: set default dark Dominion theme */
 void nk_ui_theme_dominion(struct nk_context *ctx);
 

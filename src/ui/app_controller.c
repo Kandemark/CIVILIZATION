@@ -129,9 +129,11 @@ void civ_app_controller_run(civ_app_controller_t *app) {
     civ_window_clear(app->window, CIV_COLOR_BG_DARK);
     civ_scene_manager_render(civ_window_get_renderer(app->window), win_w, win_h,
                              app->game, &app->input);
-    /* Render popup windows on top of everything */
     civ_window_mgr_render(&app->window_mgr, civ_window_get_renderer(app->window),
                           NULL);
+    /* Nuklear overlay — any scene can use g_nk_ctx to render Nuklear UI */
+    nk_ui_begin();
+    nk_ui_end();
     civ_window_present(app->window);
 
     civ_input_end_frame(&app->input);

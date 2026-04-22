@@ -158,20 +158,27 @@ int nk_ui_handle_event(const SDL_Event *evt) {
     return 0;
 }
 
+/* Global context for scenes to reference */
+struct nk_context *g_nk_ctx = NULL;
+
 struct nk_context *nk_ui_begin(void) {
+    if (g_nk_ctx) return g_nk_ctx; /* already begun this frame */
     struct nk_context *ctx = &nksdl.ctx;
     Uint64 now = SDL_GetTicks();
     ctx->delta_time_seconds = (float)(now - nksdl.time_of_last_frame) / 1000.0f;
     nksdl.time_of_last_frame = now;
     nk_input_begin(ctx);
+    g_nk_ctx = ctx;
     return ctx;
 }
 
 /* ── Render ───────────────────────────────────────────────────── */
 void nk_ui_end(void) {
+    if (!g_nk_ctx) return;
     struct nk_context *ctx = &nksdl.ctx;
     struct nk_sdl_device *dev = &nksdl.dev;
     nk_input_end(ctx);
+    g_nk_ctx = NULL;
 
     const struct nk_draw_command *cmd;
     const nk_draw_index *offset = NULL;
