@@ -107,7 +107,7 @@ struct nk_context *nk_ui_init(SDL_Window *win, SDL_Renderer *renderer) {
     image = nk_font_atlas_bake(&nksdl.atlas, &w, &h, NK_FONT_ATLAS_RGBA32);
     if (image && w > 0 && h > 0) {
         device_upload_atlas(image, w, h);
-        nk_font_atlas_end(&nksdl.atlas, nk_handle_id((int)nksdl.dev.font_tex),
+        nk_font_atlas_end(&nksdl.atlas, nk_handle_ptr(nksdl.dev.font_tex),
                           &nksdl.dev.tex_null);
         fprintf(stderr, "[NK] Atlas end OK. font_count=%d default_font=%p\n",
             nksdl.atlas.font_num, (void*)nksdl.atlas.default_font);
