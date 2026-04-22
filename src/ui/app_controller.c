@@ -3,10 +3,10 @@
 #include "engine/font.h"
 #include "ui/scene.h"
 #include "ui/ui_common.h"
+#include "utils/paths.h"
 #include <SDL3/SDL.h>
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 civ_window_mgr_t *g_window_mgr = NULL;
 
@@ -20,10 +20,12 @@ civ_result_t civ_app_controller_init(civ_app_controller_t *app, int argc,
 
   memset(app, 0, sizeof(*app));
 
-  /* Change to executable directory so relative data/ paths work
-     regardless of where the game is launched from */
-  char *base = SDL_GetBasePath();
-  if (base) { chdir(base); SDL_free(base); }
+  /* Resolve asset base path from executable location */
+  {
+    char *base = SDL_GetBasePath();
+    civ_path_init(base ? base : "./");
+    if (base) SDL_free(base);
+  }
 
   /* Initialize theme BEFORE any widgets or scenes use it */
   civ_theme_init_default();

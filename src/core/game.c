@@ -1,4 +1,5 @@
 #include "core/game.h"
+#include "utils/paths.h"
 #include "core/ai/ai_system.h"
 #include "core/character.h"
 #include "core/npc_engine.h"
@@ -66,8 +67,11 @@ void civ_game_destroy(civ_game_t *game) {
   free(game);
 }
 
+#define RESOLVE(rel) (civ_path_resolve(rel, _path, sizeof(_path)), _path)
+
 civ_result_t civ_game_initialize(civ_game_t *game,
                                  const civ_game_config_t *config) {
+  char _path[512];
   if (!game || !config)
     return error_result(CIV_ERROR_INVALID_ARGUMENT, "Invalid arguments");
 
@@ -94,9 +98,10 @@ civ_result_t civ_game_initialize(civ_game_t *game,
   game->world_map =
       civ_map_create(CIV_DEFAULT_MAP_WIDTH, CIV_DEFAULT_MAP_HEIGHT, seed);
   if (game->world_map) {
-    if (civ_earth_map_is_valid(CIV_EARTH_MAP_DEFAULT_PATH)) {
+    RESOLVE("data/earth_2048x1024.earth");
+    if (civ_earth_map_is_valid(_path)) {
       civ_result_t earth_res =
-          civ_earth_map_load(CIV_EARTH_MAP_DEFAULT_PATH, game->world_map);
+          civ_earth_map_load(_path, game->world_map);
       if (earth_res.error == CIV_OK) {
         printf("[GAME] Earth map loaded from %s\n",
                CIV_EARTH_MAP_DEFAULT_PATH);
@@ -132,7 +137,7 @@ civ_result_t civ_game_initialize(civ_game_t *game,
   game->system_orchestrator = civ_system_orchestrator_create();
 
   /* Load real political borders from Natural Earth data */
-  if (civ_political_borders_load("data/earth_borders.bin",
+  if (civ_political_borders_load(RESOLVE("data/earth_borders.bin"),
                                   game->world_map->width,
                                   game->world_map->height)) {
     civ_political_borders_apply(game->world_map);
@@ -141,7 +146,7 @@ civ_result_t civ_game_initialize(civ_game_t *game,
   /* Load master nation index from Natural Earth */
   game->nations_data = civ_nations_data_create();
   if (game->nations_data) {
-    civ_nations_data_load(game->nations_data, "data/nations.bin");
+    civ_nations_data_load(game->nations_data, RESOLVE("data/nations.bin"));
     printf("[GAME] Nations data: %u countries loaded\n",
            game->nations_data->count);
   }
@@ -150,7 +155,7 @@ civ_result_t civ_game_initialize(civ_game_t *game,
   game->resource_map = civ_resource_map_create(
       game->world_map->width, game->world_map->height);
   if (game->resource_map) {
-    civ_resource_map_load(game->resource_map, "data/resources.bin");
+    civ_resource_map_load(game->resource_map, RESOLVE("data/resources.bin"));
     printf("[GAME] Resource map loaded\n");
   }
 
@@ -182,14 +187,17 @@ civ_result_t civ_game_initialize(civ_game_t *game,
   /* Load flag metadata — textures loaded later when renderer is available */
   game->flag_system = civ_flag_system_create(NULL);
   if (game->flag_system) {
-    civ_flag_system_load(game->flag_system, "data/flags/index.bin", "data/flags");
+    char _path2[512];
+    civ_path_resolve("data/flags/index.bin", _path, sizeof(_path));
+    civ_path_resolve("data/flags", _path2, sizeof(_path2));
+    civ_flag_system_load(game->flag_system, _path, _path2);
   }
 
   /* Load cities data */
   game->cities_data = civ_cities_data_create(
       game->world_map->width, game->world_map->height);
   if (game->cities_data) {
-    civ_cities_data_load(game->cities_data, "data/cities.bin");
+    civ_cities_data_load(game->cities_data, RESOLVE("data/cities.bin"));
     printf("[GAME] Cities data: %u cities loaded\n",
            game->cities_data->count);
   }

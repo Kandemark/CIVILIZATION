@@ -219,7 +219,8 @@ UTILS_SRCS = \
 	src/utils/memory_pool.c \
 	src/utils/config.c \
 	src/utils/cache.c \
-	src/utils/noise.c
+	src/utils/noise.c \
+	src/utils/paths.c
 
 # Visuals
 VISUAL_SRCS = \
