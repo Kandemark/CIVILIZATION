@@ -64,13 +64,24 @@ void civ_resource_update_price(civ_regional_resource_t *res,
   if (!res)
     return;
 
-  /* Price driven by regional scarcity * global market index */
   civ_float_t scarcity = res->local_demand / MAX(1.0f, res->local_supply);
   res->current_price = scarcity * global_index;
 
-  /* Bubble logic (simplified) */
   if (res->current_price > 5.0f) {
     civ_log(CIV_LOG_WARNING, "Economic bubble detected for resource %s",
             res->resource_id);
+  }
+}
+
+void civ_resource_market_update_all(civ_commodity_market_t *market) {
+  if (!market) return;
+
+  /* Nudge supply/demand with small random drift */
+  for (size_t i = 0; i < market->resource_count; i++) {
+    civ_regional_resource_t *res = &market->resources[i];
+    float drift = ((float)(rand() % 100) / 100.0f - 0.5f) * 0.05f;
+    res->local_supply = MAX(1.0f, res->local_supply + drift * 10.0f);
+    res->local_demand = MAX(1.0f, res->local_demand + drift * 10.0f);
+    civ_resource_update_price(res, market->global_price_index);
   }
 }

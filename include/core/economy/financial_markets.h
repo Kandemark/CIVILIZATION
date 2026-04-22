@@ -88,6 +88,12 @@ void                 civ_market_destroy(civ_market_engine_t *m);
 /* Advance one turn — fluctuate rates and prices */
 void civ_market_update(civ_market_engine_t *m);
 
+/* Apply real production data to commodity prices and currency strength.
+   Pass the global civ_nation_economy_t aggregate as void*. */
+void civ_market_apply_production(civ_market_engine_t *m,
+                                  float global_gdp, float global_food,
+                                  float global_energy, float global_industrial);
+
 /* Currency lookup */
 civ_market_currency_t *civ_market_get_currency(civ_market_engine_t *m, const char *iso);
 float           civ_market_exchange(civ_market_engine_t *m,

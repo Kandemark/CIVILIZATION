@@ -39,12 +39,37 @@ void civ_scroll_area_set_content_size(civ_scroll_area_t *sa, int cw, int ch) {
 }
 
 SDL_Renderer *civ_scroll_area_begin(civ_scroll_area_t *sa, SDL_Renderer *main_r) {
-  (void)sa; (void)main_r;
-  return NULL; /* Requires SDL_CreateSoftwareRenderer or target texture */
+  if (!sa || !main_r) return NULL;
+
+  /* Create content texture on first use */
+  if (!sa->content_tex) {
+    sa->content_tex = SDL_CreateTexture(main_r, SDL_PIXELFORMAT_ARGB8888,
+        SDL_TEXTUREACCESS_TARGET, sa->content_w, sa->content_h);
+    if (!sa->content_tex) return NULL;
+  }
+
+  /* Clear content texture */
+  SDL_SetRenderTarget(main_r, sa->content_tex);
+  SDL_SetRenderDrawColor(main_r, 0, 0, 0, 0);
+  SDL_RenderClear(main_r);
+  return main_r;
 }
 
 void civ_scroll_area_end(civ_scroll_area_t *sa, SDL_Renderer *main_r) {
-  (void)sa; (void)main_r;
+  if (!sa || !main_r || !sa->content_tex) return;
+
+  /* Reset render target to default */
+  SDL_SetRenderTarget(main_r, NULL);
+
+  /* Blit visible portion of content texture */
+  int src_y = (int)sa->scroll_y;
+  int src_h = (int)sa->base.h;
+  if (src_y + src_h > sa->content_h) src_h = sa->content_h - src_y;
+  if (src_h <= 0) return;
+
+  SDL_FRect src = { 0, (float)src_y, (float)sa->content_w, (float)src_h };
+  SDL_FRect dst = { sa->base.x, sa->base.y, sa->base.w, (float)src_h };
+  SDL_RenderTexture(main_r, sa->content_tex, &src, &dst);
 }
 
 void civ_scroll_area_update(civ_scroll_area_t *sa, civ_input_state_t *input,

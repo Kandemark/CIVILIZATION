@@ -110,7 +110,7 @@ static void update(civ_game_t *game, civ_input_state_t *input) {
   if (!game->player_character) { civ_character_t *pc = civ_character_create(game->current_profile?game->current_profile->name:"Citizen"); civ_character_apply_background(pc, CIV_BG_BUREAUCRATIC); game->player_character = pc; }
       /* Give starting money in local currency */
       if (game->market) {
-        civ_market_engine_t *mkt = (civ_market_engine_t *)game->market;
+        civ_market_engine_t *mkt = game->market;
         /* Find currency for this nation */
         for (int ci = 0; ci < mkt->currency_count; ci++) {
           if (strcasestr(nationality, mkt->currencies[ci].iso) ||

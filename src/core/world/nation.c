@@ -502,3 +502,108 @@ civ_nation_t *civ_nation_find_owner(civ_nation_manager_t *mgr, civ_map_t *map,
   }
   return NULL;
 }
+
+/* ── Per-nation economic computation ───────────────────────────────── */
+void civ_nation_compute_economy(civ_nation_t *n, civ_map_t *map,
+                                 const void *rm_void) {
+  if (!n || !map) return;
+  const civ_resource_map_t *rm = (const civ_resource_map_t *)rm_void;
+
+  memset(&n->economy, 0, sizeof(n->economy));
+
+  int land_tiles = 0, water_tiles = 0;
+  float total_elevation = 0.0f;
+  float total_fertility = 0.0f;
+
+  /* Count owned tiles and sum resource quantities */
+  civ_nation_resource_profile_t rp;
+  civ_nation_calculate_resources(n, map, rm, &rp);
+
+  for (int32_t y = 0; y < map->height; y++) {
+    for (int32_t x = 0; x < map->width; x++) {
+      civ_map_tile_t *t = civ_map_get_tile(map, x, y);
+      if (!t) continue;
+      if (strcmp(t->owner_id, n->id) != 0) continue;
+
+      if (t->land_use == CIV_LAND_USE_WATER) {
+        water_tiles++;
+      } else {
+        land_tiles++;
+        total_elevation += t->elevation;
+        total_fertility += t->fertility;
+      }
+    }
+  }
+
+  n->economy.owned_land_tiles = land_tiles;
+  n->economy.owned_water_tiles = water_tiles;
+
+  if (land_tiles == 0) return;
+
+  float avg_elevation = total_elevation / (float)land_tiles;
+  float avg_fertility = total_fertility / (float)land_tiles;
+  int64_t pop = n->population > 0 ? n->population : 1000000;
+  float tech_factor = 1.0f + (float)n->tech_index * 0.002f;
+  float econ_factor = 1.0f + (float)n->economic_index * 0.002f;
+
+  /* GDP: base from land + tech + resources */
+  float gdp_base = (float)land_tiles * 0.5f * tech_factor * econ_factor;
+  float resource_bonus = (float)rp.total_resources * 0.01f;
+  float gdp = gdp_base + resource_bonus;
+  if (gdp < 1.0f) gdp = 1.0f;
+
+  n->economy.gdp = gdp;
+  n->economy.gdp_per_capita = gdp * 1000000.0f / (float)pop;
+  n->economy.gdp_growth = 0.01f + (float)n->economic_index * 0.0001f;
+  n->economy.inflation = 0.02f;
+  n->economy.unemployment = 0.04f + (1.0f / (econ_factor + 0.5f)) * 0.04f;
+  n->economy.labor_force = (float)pop * 0.45f;
+  n->economy.avg_wage = 20000.0f + gdp * 0.5f;
+
+  /* Food: from arable land + fertility + agriculture resources */
+  n->economy.food_production = (float)land_tiles * avg_fertility * 500.0f * tech_factor;
+  n->economy.food_consumption = (float)pop * 2500.0f * 365.0f / 1000000.0f;
+
+  /* Energy: from oil/gas/coal resources + tech */
+  float energy_res = (float)(rp.quantities[CIV_RESOURCE_OIL] +
+                              rp.quantities[CIV_RESOURCE_NATURAL_GAS] +
+                              rp.quantities[CIV_RESOURCE_COAL]);
+  n->economy.energy_output = (float)land_tiles * 0.1f * tech_factor + energy_res * 0.5f;
+  if (n->economy.energy_output < 1.0f) n->economy.energy_output = 1.0f;
+
+  /* Raw materials: from extraction resources */
+  n->economy.raw_materials_output = (float)rp.total_resources * 10.0f * tech_factor;
+  if (n->economy.raw_materials_output < 1.0f) n->economy.raw_materials_output = 1.0f;
+
+  /* Industrial output: from raw materials + manufacturing + tech */
+  n->economy.industrial_output = n->economy.raw_materials_output * 1.5f * econ_factor;
+
+  /* Tax revenue: from GDP */
+  n->economy.tax_revenue = gdp * 0.2f;
+}
+
+void civ_nation_compute_all_economies(civ_nation_manager_t *mgr, civ_map_t *map,
+                                       const void *resource_map,
+                                       civ_nation_economy_t *global_out) {
+  if (!mgr || !map) return;
+
+  if (global_out) memset(global_out, 0, sizeof(*global_out));
+
+  float total_gdp = 0.0f;
+  int nations_with_land = 0;
+
+  for (int i = 0; i < mgr->count; i++) {
+    civ_nation_compute_economy(&mgr->nations[i], map, resource_map);
+    if (mgr->nations[i].economy.owned_land_tiles > 0) {
+      total_gdp += mgr->nations[i].economy.gdp;
+      nations_with_land++;
+    }
+  }
+
+  if (global_out && nations_with_land > 0) {
+    global_out->gdp = total_gdp;
+    global_out->gdp_per_capita = total_gdp / (float)nations_with_land;
+    global_out->inflation = 0.02f;
+    global_out->unemployment = 0.05f;
+  }
+}

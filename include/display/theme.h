@@ -30,6 +30,29 @@ typedef struct {
   uint32_t text_secondary; /* Dimmed / less important */
   uint32_t text_dim;       /* Disabled / hint text */
 
+  /* HUD */
+  uint32_t hud_bg;         /* Top bar / sidebar background */
+  uint32_t hud_border;     /* HUD divider lines */
+  uint32_t hud_text;       /* HUD text default */
+  uint32_t hud_accent;     /* Highlight text in HUD */
+
+  /* Panels */
+  uint32_t panel_bg;       /* Floating panel background */
+  uint32_t panel_header;   /* Panel title bar background */
+
+  /* Status */
+  uint32_t success;        /* Green — positive indicators */
+  uint32_t danger;         /* Red — negative / war */
+  uint32_t warning;        /* Amber — caution */
+  uint32_t info;           /* Blue — informational */
+
+  /* Map */
+  uint32_t map_water;      /* Ocean water */
+  uint32_t map_water_dim;  /* Unexplored water */
+  uint32_t map_land;       /* Unclaimed land */
+  uint32_t map_land_dim;   /* Unexplored land */
+  uint32_t map_border;     /* Border lines */
+
   /* Spacing (UI grid units, px) */
   int space_xs;   /* 4 */
   int space_sm;   /* 8 */

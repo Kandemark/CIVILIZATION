@@ -32,6 +32,25 @@ typedef struct {
   float min_lat, max_lat;
 } civ_nation_region_t;
 
+/* ── Economic profile (computed from territory + resources) ─────── */
+typedef struct {
+  float    gdp;                  /* total GDP in millions */
+  float    gdp_per_capita;
+  float    gdp_growth;           /* annualized growth rate */
+  float    inflation;
+  float    unemployment;
+  float    tax_revenue;
+  float    food_production;      /* kcal/year */
+  float    food_consumption;     /* kcal/year */
+  float    energy_output;        /* MWh/year */
+  float    industrial_output;
+  float    raw_materials_output;
+  float    labor_force;
+  float    avg_wage;
+  int      owned_land_tiles;
+  int      owned_water_tiles;
+} civ_nation_economy_t;
+
 /* ── Nation ─────────────────────────────────────────────────────────── */
 typedef struct {
   char                    id[CIV_NATION_ID_MAX];
@@ -65,6 +84,9 @@ typedef struct {
     civ_nation_region_t region;
   } subdivisions[CIV_SUBDIVISION_MAX];
   int subdivision_count;
+
+  /* Economic state */
+  civ_nation_economy_t           economy;
 
   /* Starting indices */
   int32_t tech_index;
@@ -131,6 +153,15 @@ bool civ_nation_contains_tile(civ_nation_t *nation, int32_t tx, int32_t ty,
 /* Find nation owning a tile by checking owner_id on the tile itself */
 civ_nation_t *civ_nation_find_owner(civ_nation_manager_t *mgr, civ_map_t *map,
                                     int32_t tx, int32_t ty);
+
+/* Compute per-nation economic profile from territory + resources + population */
+void civ_nation_compute_economy(civ_nation_t *n, civ_map_t *map,
+                                const void *resource_map);
+
+/* Compute economies for all nations and global aggregates */
+void civ_nation_compute_all_economies(civ_nation_manager_t *mgr, civ_map_t *map,
+                                       const void *resource_map,
+                                       civ_nation_economy_t *global_out);
 
 #ifdef __cplusplus
 }

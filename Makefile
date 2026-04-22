@@ -45,7 +45,12 @@ WIDGET_SRCS = \
 	src/ui/widget/drawer.c \
 	src/ui/widget/tooltip.c \
 	src/ui/widget/scroll_area.c \
-	src/ui/widget/label.c
+	src/ui/widget/label.c \
+	src/ui/widget/toggle.c \
+	src/ui/widget/slider.c \
+	src/ui/widget/dropdown.c \
+	src/ui/widget/tab_bar.c \
+	src/ui/widget/modal.c
 
 # Layout engine sources
 LAYOUT_SRCS = \

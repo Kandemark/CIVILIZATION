@@ -88,6 +88,55 @@ civ_market_currency_t *civ_market_add_currency(civ_market_engine_t *m,
   return c;
 }
 
+void civ_market_apply_production(civ_market_engine_t *m,
+                                  float global_gdp, float global_food,
+                                  float global_energy, float global_industrial) {
+  if (!m) return;
+  /* Use production data to nudge commodity supply/demand instead of pure random */
+  for (int i = 0; i < m->commodity_count; i++) {
+    civ_commodity_t *co = &m->commodities[i];
+    /* Base drift */
+    float ss = ((float)(rand()%100)/100.0f - 0.5f) * 0.03f;
+    float ds = ((float)(rand()%100)/100.0f - 0.5f) * 0.03f;
+
+    /* Production-influenced adjustment */
+    if (strcmp(co->name, "Wheat") == 0 || strcmp(co->name, "Corn") == 0 ||
+        strcmp(co->name, "Rice") == 0) {
+      float food_factor = global_food / 100000.0f;
+      ss += food_factor * 0.01f;
+    }
+    if (strcmp(co->name, "Crude Oil") == 0 || strcmp(co->name, "Natural Gas") == 0) {
+      float energy_factor = global_energy / 10000.0f;
+      ss += energy_factor * 0.01f;
+    }
+    if (strcmp(co->name, "Copper") == 0 || strcmp(co->name, "Iron Ore") == 0) {
+      float industrial_factor = global_industrial / 50000.0f;
+      ds += industrial_factor * 0.01f;
+    }
+    if (strcmp(co->name, "Gold") == 0) {
+      ds += (global_gdp / 100000.0f) * 0.005f;
+    }
+
+    co->supply_index += ss; co->demand_index += ds;
+    if (co->supply_index < 0.1f) co->supply_index = 0.1f;
+    if (co->supply_index > 0.9f) co->supply_index = 0.9f;
+    if (co->demand_index < 0.1f) co->demand_index = 0.1f;
+    if (co->demand_index > 0.9f) co->demand_index = 0.9f;
+    float pm = (co->demand_index - co->supply_index) * co->volatility;
+    co->price_per_unit *= (1.0f + pm);
+  }
+
+  /* Currency rates: influenced by GDP */
+  for (int i = 0; i < m->currency_count; i++) {
+    civ_market_currency_t *c = &m->currencies[i];
+    float swing = ((float)(rand()%100)/100.0f - 0.5f) * c->volatility * 1.5f;
+    c->current_rate *= (1.0f + swing);
+    c->current_rate *= (1.0f + c->inflation * 0.001f);
+    if (c->current_rate < c->base_rate * 0.5f) c->current_rate = c->base_rate * 0.5f;
+    if (c->current_rate > c->base_rate * 3.0f) c->current_rate = c->base_rate * 3.0f;
+  }
+}
+
 void civ_market_update(civ_market_engine_t *m) {
   if (!m) return;
   for (int i = 0; i < m->currency_count; i++) {

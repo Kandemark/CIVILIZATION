@@ -60,6 +60,7 @@
 #include "visualization/cultural_display.h"
 #include "world/cities_data.h"
 #include "world/dynamic_borders.h"
+#include "world/nation.h"
 #include "world/flag_system.h"
 #include "world/map_generator.h"
 #include "world/nations_data.h"
@@ -182,7 +183,6 @@ typedef struct civ_game {
   civ_manufacturing_system_t    *manufacturing;
   civ_energy_system_t           *energy;
   /* Markets */
-  civ_market_engine_t           *financial_market;
   civ_commodity_market_t        *commodity_market;
   civ_domestic_trade_system_t   *domestic_trade;
   civ_labor_market_t            *labor_market;
@@ -229,14 +229,17 @@ typedef struct civ_game {
   /* NPC engine */
   void *npc_engine;     /* civ_npc_engine_t — opaque */
 
-  /* Market engine */
-  void *market;         /* civ_market_engine_t — opaque */
+  /* Market engine — currencies, commodities, companies */
+  civ_market_engine_t          *market;
 
   /* Data-driven world systems */
   civ_nations_data_t    *nations_data;
   civ_resource_map_t    *resource_map;
   civ_cities_data_t     *cities_data;
   civ_flag_system_t     *flag_system;
+
+  /* Global economy aggregates */
+  civ_nation_economy_t   global_economy;
 
   /* Player wallet */
   civ_wallet_t wallet;

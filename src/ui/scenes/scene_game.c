@@ -54,6 +54,41 @@ typedef enum { SCR_MAP, SCR_DIPLOMACY, SCR_ECONOMY, SCR_MILITARY,
 static civ_screen_t             current_screen = SCR_MAP;
 static civ_map_view_type_t      current_map_view = CIV_MAP_VIEW_POLITICAL;
 static bool                     flags_loaded = false;
+static civ_layer_stack_t        layer_stack;
+static bool                     layers_wired = false;
+
+/* ── Toast notification system ────────────────────────────────── */
+#define CIV_TOAST_MAX   8
+#define CIV_TOAST_LEN   128
+static struct { char msg[CIV_TOAST_LEN]; uint32_t color; float ttl; } toasts[CIV_TOAST_MAX];
+static int toast_count = 0;
+static void toast_push(const char *msg, uint32_t color) {
+  if (toast_count >= CIV_TOAST_MAX) {
+    memmove(toasts, toasts + 1, (CIV_TOAST_MAX - 1) * sizeof(toasts[0]));
+    toast_count--;
+  }
+  strncpy(toasts[toast_count].msg, msg, CIV_TOAST_LEN - 1);
+  toasts[toast_count].color = color;
+  toasts[toast_count].ttl = 4.0f;
+  toast_count++;
+}
+static void toast_update(float dt) {
+  for (int i = 0; i < toast_count; i++) {
+    toasts[i].ttl -= dt;
+    if (toasts[i].ttl < 0) { memmove(toasts + i, toasts + i + 1, (toast_count - i - 1) * sizeof(toasts[0])); toast_count--; i--; }
+  }
+}
+static void toast_render(SDL_Renderer *r) {
+  int tx = last_win_w / 2, ty = last_win_h - 80;
+  for (int i = toast_count - 1; i >= 0; i--) {
+    uint8_t alpha = (uint8_t)(toasts[i].ttl > 1.0f ? 230 : toasts[i].ttl * 230);
+    int tw = 400, th = 28;
+    civ_render_rect_filled_alpha(r, tx - tw/2, ty, tw, th, g_theme.panel_bg, alpha);
+    civ_render_rect_outline(r, tx - tw/2, ty, tw, th, toasts[i].color, 1);
+    civ_font_render_aligned(r, font_hud, toasts[i].msg, tx - tw/2 + 8, ty, tw - 16, th, toasts[i].color, CIV_ALIGN_LEFT, CIV_VALIGN_MIDDLE);
+    ty -= 34;
+  }
+}
 static char                     selected_nation_id[64] = "";
 static int16_t                  selected_nation_cid = -1;
 static bool                     show_nation_detail = false;
@@ -107,7 +142,7 @@ static void render_units_layer(SDL_Renderer *r, civ_game_t *game) {
     if (selected_unit == u)
       civ_render_rect_filled_alpha(r, (int)(sx - size / 2 - 4),
                                    (int)(sy - size / 2 - 4), (int)size + 8,
-                                   (int)size + 8, 0x00A0FF, 180);
+                                   (int)size + 8, g_theme.info, 180);
 
     uint32_t color = u->has_moved ? 0x555555 : 0xFF2200;
     if (u->unit_type == CIV_UNIT_TYPE_SETTLER) color = 0x00FFCC;
@@ -142,8 +177,10 @@ static void render_settlements_layer(SDL_Renderer *r, civ_game_t *game) {
 }
 
 static void render_hud_top(SDL_Renderer *r, civ_game_t *game) {
-  civ_render_rect_filled_alpha(r, 0, 0, last_win_w, 38, 0x050A14, 235);
-  civ_render_line(r, 0, 38, last_win_w, 38, 0x1A2A3A);
+  /* Gradient top bar background */
+  civ_render_gradient_vertical(r, 0, 0, last_win_w, 34,
+      g_theme.hud_bg, g_theme.bg_deep);
+  civ_render_line(r, 0, 34, last_win_w, 34, g_theme.hud_border);
 
   float lat = 90.0f - (cam.y / (float)cam.map_height) * 180.0f;
   float lon = (cam.x / (float)cam.map_width) * 360.0f - 180.0f;
@@ -151,7 +188,7 @@ static void render_hud_top(SDL_Renderer *r, civ_game_t *game) {
   while (lon > 180.0f) lon -= 360.0f;
 
   char buf[128];
-  /* Time — left section */
+  /* Time — centered */
   char time_buf[64];
   if (game->time_engine) {
     civ_time_engine_format_hud((civ_time_engine_t *)game->time_engine,
@@ -159,38 +196,41 @@ static void render_hud_top(SDL_Renderer *r, civ_game_t *game) {
   } else {
     snprintf(time_buf, sizeof(time_buf), "Turn %d", game->current_turn);
   }
-  civ_font_render_aligned(r, font_hud, time_buf, 228, 0, 260, 38,
-                          CIV_COLOR_PRIMARY, CIV_ALIGN_LEFT, CIV_VALIGN_MIDDLE);
+  civ_font_render_aligned(r, font_hud, time_buf,
+      last_win_w/2 - 130, 0, 260, 34,
+      CIV_COLOR_PRIMARY, CIV_ALIGN_CENTER, CIV_VALIGN_MIDDLE);
 
-  /* Science */
-  if (game->technology_tree) {
-    civ_innovation_system_t *it = game->technology_tree;
-    sprintf(buf, "Sci +%.0f  Idx %+d", it->total_budget, it->aggregate_index);
-    civ_font_render_aligned(r, font_hud, buf, 500, 0, 240, 38, 0x00A0FF,
-                            CIV_ALIGN_LEFT, CIV_VALIGN_MIDDLE);
+  /* Left: nation info if selected */
+  if (selected_nation_id[0] && game->nation_manager) {
+    civ_nation_t *nat = civ_nation_get_by_id(
+        (civ_nation_manager_t *)game->nation_manager, selected_nation_id);
+    if (nat && nat->iso_a2[0] && game->flag_system) {
+      const civ_flag_entry_t *fl = civ_flag_system_get_by_iso(
+          game->flag_system, nat->iso_a2);
+      if (fl) civ_flag_render(r, fl, 6, 4, 32, 20);
+    }
   }
 
-  /* Coords */
-  sprintf(buf, "%.0f%c %.0f%c  z%.1f",
-          fabsf(lat), lat >= 0 ? 'N' : 'S',
-          fabsf(lon), lon >= 0 ? 'E' : 'W',
-          cam.zoom * 10.0f);
-  civ_font_render_aligned(r, font_hud, buf, 750, 0, 200, 38,
-                          CIV_COLOR_TEXT_DIM, CIV_ALIGN_LEFT, CIV_VALIGN_MIDDLE);
+  /* Right: wallet + coords */
+  float bal = 0;
+  if (game->wallet.count > 0 && game->market)
+    bal = civ_wallet_total(&game->wallet, game->market);
+  sprintf(buf, "$%.0f  |  %.0f%c %.0f%c  z%.1f",
+          bal, fabsf(lat), lat >= 0 ? 'N' : 'S',
+          fabsf(lon), lon >= 0 ? 'E' : 'W', cam.zoom * 10.0f);
+  civ_font_render_aligned(r, font_hud, buf,
+      last_win_w - 250, 0, 240, 34,
+      CIV_COLOR_TEXT_DIM, CIV_ALIGN_RIGHT, CIV_VALIGN_MIDDLE);
 
-  /* Hovered country — info card */
+  /* Hovered country — info card near cursor */
   if (hovered_country[0]) {
-    civ_font_render_aligned(r, font_hud, hovered_country, 255, 0, 180, 38,
-                            0xFFCC00, CIV_ALIGN_LEFT, CIV_VALIGN_MIDDLE);
-    /* Info card near cursor */
     int cx = (int)hover_country_x + 18, cy = (int)hover_country_y + 18;
     int cw = 210, ch = 72;
-    /* Keep on screen */
     if (cx + cw > last_win_w) cx = (int)hover_country_x - cw - 10;
     if (cy + ch > last_win_h) cy = (int)hover_country_y - ch - 10;
 
-    civ_render_rect_filled_alpha(r, cx, cy, cw, ch, 0x0A1220, 240);
-    civ_render_rect_outline(r, cx, cy, cw, ch, 0xFFCC00, 1);
+    civ_render_rect_filled_alpha(r, cx, cy, cw, ch, g_theme.panel_bg, 240);
+    civ_render_rect_outline(r, cx, cy, cw, ch, g_theme.warning, 1);
 
     /* Flag icon */
     civ_nation_t *nat = NULL;
@@ -207,7 +247,7 @@ static void render_hud_top(SDL_Renderer *r, civ_game_t *game) {
 
     int text_x = cx + 44;
     civ_font_render_aligned(r, font_hud, hovered_country, text_x, cy + 4,
-                            cw - 52, 20, 0xFFCC00, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
+                            cw - 52, 20, g_theme.warning, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
     char info[64] = "Independent State";
     if (nat) {
       snprintf(info, sizeof(info), "Pop: %lldM | Gov: %s",
@@ -215,9 +255,9 @@ static void render_hud_top(SDL_Renderer *r, civ_game_t *game) {
                civ_government_proximity_label(nat->government));
     }
     civ_font_render_aligned(r, font_hud, info, text_x, cy + 26,
-                            cw - 52, 18, 0x8899AA, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
+                            cw - 52, 18, g_theme.hud_text, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
     civ_font_render_aligned(r, font_hud, "Click for details", text_x, cy + 48,
-                            cw - 52, 16, 0x556677, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
+                            cw - 52, 16, g_theme.text_dim, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
   }
 
 }
@@ -253,7 +293,7 @@ static void render_city_labels(SDL_Renderer *r, civ_game_t *game) {
     if (sx < -20 || sx > last_win_w + 20 || sy < -20 || sy > last_win_h + 20)
       continue;
 
-    uint32_t label_color = city->capital_flag ? 0xFFCC00 : 0xAABBCC;
+    uint32_t label_color = city->capital_flag ? g_theme.warning : g_theme.text_secondary;
     int font_sz = city->tier <= CIV_CITY_TIER_MEGA ? 16 :
                   city->tier <= CIV_CITY_TIER_LARGE ? 13 : 11;
 
@@ -262,7 +302,7 @@ static void render_city_labels(SDL_Renderer *r, civ_game_t *game) {
                             (int)sx - 40, (int)sy + 6, 80, font_sz + 4,
                             label_color, CIV_ALIGN_CENTER, CIV_VALIGN_TOP);
     civ_render_rect_filled(r, (int)sx - 1, (int)sy - 1, 3, 3,
-                           city->capital_flag ? 0xFFCC00 : 0x6688AA);
+                           city->capital_flag ? g_theme.warning : 0x6688AA);
     shown++;
   }
   civ_cities_free_result(cities);
@@ -287,20 +327,20 @@ static void render_nation_detail_panel(SDL_Renderer *r, civ_game_t *game,
   }
 
   /* Background */
-  civ_render_rect_filled_alpha(r, px, py, pw, ph, 0x0A1220, 245);
+  civ_render_rect_filled_alpha(r, px, py, pw, ph, g_theme.panel_bg, 245);
   civ_render_rect_outline(r, px, py, pw, ph, 0x1A2A4A, 1);
   /* Title bar */
-  civ_render_rect_filled_alpha(r, px, py, pw, 30, 0x1A2A3A, 230);
+  civ_render_rect_filled_alpha(r, px, py, pw, 30, g_theme.hud_border, 230);
 
   /* Close X */
   civ_font_render_aligned(r, font_hud, "X", close_x, close_y, 20, 20,
-                          close_hov ? 0xFF4444 : 0x667788,
+                          close_hov ? g_theme.danger : g_theme.text_dim,
                           CIV_ALIGN_CENTER, CIV_VALIGN_MIDDLE);
 
   if (!nat) {
     civ_font_render_aligned(r, font_hud, "Nation not found",
                             px + 12, py + 40, pw - 24, 20,
-                            0xFF4444, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
+                            g_theme.danger, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
     return;
   }
 
@@ -315,10 +355,10 @@ static void render_nation_detail_panel(SDL_Renderer *r, civ_game_t *game,
   /* Nation name */
   civ_font_render_aligned(r, font_hud, nat->name,
                           px + 68, py + 2, pw - 80, 24,
-                          0xFFCC00, CIV_ALIGN_LEFT, CIV_VALIGN_MIDDLE);
+                          g_theme.warning, CIV_ALIGN_LEFT, CIV_VALIGN_MIDDLE);
 
   /* Divider */
-  civ_render_line(r, px + 10, py + 34, px + pw - 10, py + 34, 0x1A2A3A);
+  civ_render_line(r, px + 10, py + 34, px + pw - 10, py + 34, g_theme.hud_border);
 
   /* Stats */
   char buf[256];
@@ -329,27 +369,36 @@ static void render_nation_detail_panel(SDL_Renderer *r, civ_game_t *game,
            fabsf(nat->capital_lon), nat->capital_lon >= 0 ? 'E' : 'W',
            nat->iso_a3[0] ? nat->iso_a3 : "—");
   civ_font_render_aligned(r, font_hud, buf, px + 12, dy, pw - 24, 15,
-                          0x8899AA, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
+                          g_theme.hud_text, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
   dy += 22;
 
-  snprintf(buf, sizeof(buf), "Population: %lldM  |  GDP/cap: $%.0f",
-           nat->population / 1000000, nat->gdp_per_capita);
+  snprintf(buf, sizeof(buf), "Population: %lldM  |  GDP: $%.0fM  |  Growth: %+.1f%%",
+           nat->population / 1000000, nat->economy.gdp,
+           nat->economy.gdp_growth * 100.0f);
   civ_font_render_aligned(r, font_hud, buf, px + 12, dy, pw - 24, 15,
-                          0xAABBCC, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
+                          g_theme.text_secondary, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
   dy += 20;
+
+  snprintf(buf, sizeof(buf), "Unemp: %.1f%%  |  Infl: %.1f%%  |  Food: %.0fM",
+           nat->economy.unemployment * 100.0f,
+           nat->economy.inflation * 100.0f,
+           nat->economy.food_production / 1000000.0f);
+  civ_font_render_aligned(r, font_hud, buf, px + 12, dy, pw - 24, 14,
+                          g_theme.hud_text, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
+  dy += 18;
 
   snprintf(buf, sizeof(buf), "Gov: %s  |  ISO: %s",
            civ_government_proximity_label(nat->government),
            nat->iso_a3[0] ? nat->iso_a3 : "—");
   civ_font_render_aligned(r, font_hud, buf, px + 12, dy, pw - 24, 15,
-                          0xAABBCC, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
+                          g_theme.text_secondary, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
   dy += 20;
 
   /* Indices */
-  civ_render_line(r, px + 10, dy, px + pw - 10, dy, 0x1A2A3A);
+  civ_render_line(r, px + 10, dy, px + pw - 10, dy, g_theme.hud_border);
   dy += 6;
   civ_font_render_aligned(r, font_hud, "INDICES", px + 12, dy, 100, 14,
-                          0xFFCC00, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
+                          g_theme.warning, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
   dy += 18;
   snprintf(buf, sizeof(buf), "Tech %+d  Econ %+d  Mil %+d  Cult %+d",
            nat->tech_index, nat->economic_index,
@@ -363,12 +412,12 @@ static void render_nation_detail_panel(SDL_Renderer *r, civ_game_t *game,
     civ_nation_resource_profile_t rp;
     civ_nation_calculate_resources(nat, game->world_map,
                                     game->resource_map, &rp);
-    civ_render_line(r, px + 10, dy, px + pw - 10, dy, 0x1A2A3A);
+    civ_render_line(r, px + 10, dy, px + pw - 10, dy, g_theme.hud_border);
     dy += 6;
     snprintf(buf, sizeof(buf), "RESOURCES: %d types, %d total",
              rp.distinct_types, rp.total_resources);
     civ_font_render_aligned(r, font_hud, buf, px + 12, dy, pw - 24, 14,
-                            0xFFCC00, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
+                            g_theme.warning, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
     dy += 16;
     /* Top 5 resources */
     int shown = 0;
@@ -386,14 +435,14 @@ static void render_nation_detail_panel(SDL_Renderer *r, civ_game_t *game,
     if (rp.distinct_types == 0) {
       civ_font_render_aligned(r, font_hud, "  No resources in territory",
                               px + 12, dy, pw - 24, 13,
-                              0x556677, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
+                              g_theme.text_dim, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
       dy += 14;
     }
   }
 
   /* Action buttons */
   dy += 6;
-  civ_render_line(r, px + 10, dy, px + pw - 10, dy, 0x1A2A3A);
+  civ_render_line(r, px + 10, dy, px + pw - 10, dy, g_theme.hud_border);
   dy += 8;
 
   const char *btn_labels[] = {"Governance", "Diplomacy", "Economy"};
@@ -402,10 +451,10 @@ static void render_nation_detail_panel(SDL_Renderer *r, civ_game_t *game,
     bool hov = civ_input_is_mouse_over(input, bx, dy, 90, 26);
     uint32_t bg = hov ? 0x1A3A5A : 0x0A1A2A;
     civ_render_rect_filled_alpha(r, bx, dy, 90, 26, bg, 220);
-    civ_render_rect_outline(r, bx, dy, 90, 26, hov ? 0x3399CC : 0x1A2A3A, 1);
+    civ_render_rect_outline(r, bx, dy, 90, 26, hov ? g_theme.info : g_theme.hud_border, 1);
     civ_font_render_aligned(r, font_hud, btn_labels[b],
                             bx, dy, 90, 26,
-                            hov ? 0xFFFFFF : 0x8899AA,
+                            hov ? 0xFFFFFF : g_theme.hud_text,
                             CIV_ALIGN_CENTER, CIV_VALIGN_MIDDLE);
     if (hov && input->mouse_left_pressed) {
       if (b == 0) current_screen = SCR_GOVERNANCE;
@@ -431,13 +480,13 @@ static void render_view_selector(SDL_Renderer *r, civ_input_state_t *input) {
     bool active = ((int)current_map_view == i); /* POLITICAL=0, GEOGRAPHICAL=1, etc */
     bool hover = civ_input_is_mouse_over(input, bx, start_y, btn_w, btn_h);
 
-    uint32_t bg = active ? colors[i] : (hover ? 0x1A2A3A : 0x0A1220);
+    uint32_t bg = active ? colors[i] : (hover ? g_theme.hud_border : g_theme.panel_bg);
     uint8_t alpha = active ? 220 : (hover ? 180 : 140);
     civ_render_rect_filled_alpha(r, bx, start_y, btn_w, btn_h, bg, alpha);
     if (active) civ_render_rect_outline(r, bx, start_y, btn_w, btn_h, 0xFFFFFF, 1);
 
     civ_font_render_aligned(r, font_hud, labels[i], bx, start_y + 1,
-                            btn_w, btn_h, active ? 0xFFFFFF : 0x8899AA,
+                            btn_w, btn_h, active ? 0xFFFFFF : g_theme.hud_text,
                             CIV_ALIGN_CENTER, CIV_VALIGN_MIDDLE);
 
     /* Click to switch view */
@@ -449,13 +498,13 @@ static void render_view_selector(SDL_Renderer *r, civ_input_state_t *input) {
   /* View label */
   civ_font_render_aligned(r, font_hud, names[(int)current_map_view],
                           start_x - 10, start_y - 1, 130, btn_h,
-                          0xCCCCCC, CIV_ALIGN_RIGHT, CIV_VALIGN_MIDDLE);
+                          g_theme.text_secondary, CIV_ALIGN_RIGHT, CIV_VALIGN_MIDDLE);
 }
 
 static void render_hud_buttons(SDL_Renderer *r, civ_input_state_t *input) {
   /* Compact icon-style buttons in top bar, with dividers */
   const char *labels[] = {"R", "T", "G", "W", "D"};
-  uint32_t colors[] = {0x00A0FF, 0x00A0FF, 0xFFCC00, 0xFFFF00, 0xFFFF00};
+  uint32_t colors[] = {g_theme.info, g_theme.info, g_theme.warning, 0xFFFF00, 0xFFFF00};
   bool *states[] = {&show_rulebook, &show_research, &show_government,
                     &show_wonders, &show_diplomacy};
   int n = 5, btn_s = 34, gap = 2;
@@ -469,9 +518,9 @@ static void render_hud_buttons(SDL_Renderer *r, civ_input_state_t *input) {
     uint32_t bg = active ? colors[i] : (hov ? 0x2A3A4A : 0x152030);
     civ_render_rect_filled_alpha(r, bx, 3, btn_s, btn_s, bg, active ? 200 : 160);
     civ_render_rect_outline(r, bx, 3, btn_s, btn_s,
-                            active ? 0xFFFFFF : 0x1A2A3A, 1);
+                            active ? 0xFFFFFF : g_theme.hud_border, 1);
     civ_font_render_aligned(r, font_hud, labels[i], bx, 3, btn_s, btn_s,
-                            active ? 0xFFFFFF : 0x8899AA,
+                            active ? 0xFFFFFF : g_theme.hud_text,
                             CIV_ALIGN_CENTER, CIV_VALIGN_MIDDLE);
   }
 }
@@ -489,12 +538,12 @@ static void render_time_controls(SDL_Renderer *r, civ_game_t *game,
     int bx = start_x + i * (btn_w + gap);
     bool active = (time_speed == speeds[i]);
     bool hov = civ_input_is_mouse_over(input, bx, btn_y, btn_w, btn_h);
-    uint32_t bg = active ? 0x004A7A : (hov ? 0x2A3A4A : 0x1A2A3A);
+    uint32_t bg = active ? 0x004A7A : (hov ? 0x2A3A4A : g_theme.hud_border);
     civ_render_rect_filled_alpha(r, bx, btn_y, btn_w, btn_h, bg, 220);
     civ_render_rect_outline(r, bx, btn_y, btn_w, btn_h,
-                            active ? 0x00A0FF : 0x1A2A3A, 1);
+                            active ? g_theme.info : g_theme.hud_border, 1);
     civ_font_render_aligned(r, font_hud, labels[i], bx, btn_y, btn_w, btn_h,
-                            active ? 0xFFFFFF : 0x8899AA,
+                            active ? 0xFFFFFF : g_theme.hud_text,
                             CIV_ALIGN_CENTER, CIV_VALIGN_MIDDLE);
     /* Click to set speed */
     if (input->mouse_left_pressed && hov) time_speed = speeds[i];
@@ -509,13 +558,18 @@ static void render_time_controls(SDL_Renderer *r, civ_game_t *game,
     snprintf(buf, sizeof(buf), "Turn %d", game->current_turn);
   }
   civ_font_render_aligned(r, font_hud, buf, start_x - 12, btn_y, start_x - 20,
-                          btn_h, 0xAABBCC, CIV_ALIGN_RIGHT, CIV_VALIGN_MIDDLE);
+                          btn_h, g_theme.text_secondary, CIV_ALIGN_RIGHT, CIV_VALIGN_MIDDLE);
   (void)game;
 }
 
 static void render_minimap_layer(SDL_Renderer *r, civ_game_t *game) {
-  int mm_w = 200, mm_h = 150, mm_x = 20, mm_y = last_win_h - mm_h - 20;
-  civ_render_minimap(r, mm_x, mm_y, mm_w, mm_h, game->world_map, NULL);
+  int mm_w = 200, mm_h = 140, mm_x = last_win_w - mm_w - 16, mm_y = last_win_h - mm_h - 16;
+  /* Rounded background */
+  civ_render_rounded_rect(r, mm_x - 2, mm_y - 2, mm_w + 4, mm_h + 4,
+                          g_theme.panel_border_radius, g_theme.panel_bg);
+  civ_render_rect_outline(r, mm_x - 2, mm_y - 2, mm_w + 4, mm_h + 4,
+                          g_theme.hud_border, 1);
+  civ_render_minimap(r, mm_x, mm_y, mm_w, mm_h, game->world_map, map_ctx);
   /* View rect on minimap */
   float view_w = last_win_w / (cam.zoom * 4.0f);
   float view_h = last_win_h / (cam.zoom * 4.0f);
@@ -526,7 +580,7 @@ static void render_minimap_layer(SDL_Renderer *r, civ_game_t *game) {
   civ_render_rect_outline(r, (int)rx, (int)ry,
                           (int)(view_w / game->world_map->width * mm_w),
                           (int)(view_h / game->world_map->height * mm_h),
-                          0xFFFFFF, 1);
+                          g_theme.map_border, 1);
 }
 
 /* ── Scene lifecycle ─────────────────────────────────────────────── */
@@ -538,7 +592,11 @@ static void init(void) {
   civ_debug_overlay_init(&debug);
   selected_unit = NULL;
   selected_settlement = NULL;
-  map_ctx = NULL; /* Created on first render with valid window size */
+  map_ctx = NULL;
+
+  /* Initialize the layer stack — all layers enabled by default */
+  civ_layer_stack_init(&layer_stack);
+  layers_wired = true;
 }
 
 static void update(civ_game_t *game, civ_input_state_t *input) {
@@ -596,6 +654,23 @@ static void update(civ_game_t *game, civ_input_state_t *input) {
       game->current_turn++;
       /* Process systems that used to run on end_turn */
       civ_game_end_turn(game);
+      /* Toast notifications for key events */
+      if (game->current_turn % 10 == 0 && game->nation_manager) {
+        civ_nation_manager_t *nm = (civ_nation_manager_t *)game->nation_manager;
+        if (nm->count > 0) {
+          int pi = nm->player_nation_index;
+          if (pi >= 0 && pi < nm->count) {
+            char tbuf[128];
+            snprintf(tbuf, sizeof(tbuf), "%s: GDP $%.0fM | Growth %+.1f%%",
+                     nm->nations[pi].name,
+                     nm->nations[pi].economy.gdp,
+                     nm->nations[pi].economy.gdp_growth * 100.0f);
+            toast_push(tbuf, g_theme.info);
+          }
+        }
+      }
+      if (game->current_turn % 25 == 0)
+        toast_push("Global markets updated", g_theme.warning);
     }
   }
 
@@ -765,6 +840,9 @@ static void update(civ_game_t *game, civ_input_state_t *input) {
       }
     }
   }
+
+  /* Update toast timers */
+  toast_update(game ? 1.0f / 60.0f : 0.016f);
 }
 
 static void render(SDL_Renderer *renderer, int win_w, int win_h,
@@ -776,7 +854,7 @@ static void render(SDL_Renderer *renderer, int win_w, int win_h,
   /* Local currency for screens */
   const char *local_cur = "USD"; const char *local_sym = "$";
   if (game->wallet.count > 0) { local_cur = game->wallet.slots[0].currency_iso;
-    civ_market_currency_t *mc = civ_market_get_currency((civ_market_engine_t*)game->market, local_cur);
+    civ_market_currency_t *mc = civ_market_get_currency(game->market, local_cur);
     if (mc) local_sym = mc->symbol; }
 
   /* Lazy-init flag textures — needs SDL_Renderer */
@@ -823,7 +901,7 @@ static void render(SDL_Renderer *renderer, int win_w, int win_h,
     render_nation_detail_panel(renderer, game, input);
   } else {
     /* Full-area screen background — covers everything below top bar */
-    int sx = 0, sy = 38, sw = win_w, sh = win_h - sy - 50;
+    int sx = 0, sy = 34, sw = win_w, sh = win_h - sy - 50;
     civ_render_rect_filled_alpha(renderer, sx, sy, sw, sh, 0x060A14, 255);
 
     /* Screen header */
@@ -854,26 +932,26 @@ static void render(SDL_Renderer *renderer, int win_w, int win_h,
       if (!gov) gov = game->government;
       int dy = cy; char buf[256];
       snprintf(buf, sizeof(buf), "%s — %s", gov_title, civ_government_proximity_label(gov));
-      civ_font_render_aligned(renderer, font_hud, buf, cx, dy, cw, 24, 0x00A0FF, CIV_ALIGN_LEFT, CIV_VALIGN_TOP); dy += 32;
+      civ_font_render_aligned(renderer, font_hud, buf, cx, dy, cw, 24, g_theme.info, CIV_ALIGN_LEFT, CIV_VALIGN_TOP); dy += 32;
       snprintf(buf, sizeof(buf), "Stability: %.0f%%  Legitimacy: %.0f%%  Efficiency: %.0f%%  Happiness: %.0f%%", gov->stability*100, gov->legitimacy*100, gov->efficiency*100, gov->profile.citizen_happiness*100);
-      civ_font_render_aligned(renderer, font_hud, buf, cx, dy, cw, 18, 0xCCCCCC, CIV_ALIGN_LEFT, CIV_VALIGN_TOP); dy += 28;
+      civ_font_render_aligned(renderer, font_hud, buf, cx, dy, cw, 18, g_theme.text_secondary, CIV_ALIGN_LEFT, CIV_VALIGN_TOP); dy += 28;
       snprintf(buf, sizeof(buf), "Auth: %.0f%%  Rep: %.0f%%  Rigidity: %.0f%%  Balance: %.0f%%  Ranking: %.0f", gov->profile.authority_concentration*100, gov->profile.representation_index*100, gov->profile.institutional_rigidity*100, gov->profile.power_balance*100, gov->profile.governance_ranking);
-      civ_font_render_aligned(renderer, font_hud, buf, cx, dy, cw, 16, 0x8899AA, CIV_ALIGN_LEFT, CIV_VALIGN_TOP); dy += 30;
-      civ_render_line(renderer, cx, dy, cx + cw, dy, 0x1A2A3A); dy += 8;
-      civ_font_render_aligned(renderer, font_hud, "POLITICAL POSITIONS", cx, dy, 200, 20, 0xFFCC00, CIV_ALIGN_LEFT, CIV_VALIGN_TOP); dy += 26;
+      civ_font_render_aligned(renderer, font_hud, buf, cx, dy, cw, 16, g_theme.hud_text, CIV_ALIGN_LEFT, CIV_VALIGN_TOP); dy += 30;
+      civ_render_line(renderer, cx, dy, cx + cw, dy, g_theme.hud_border); dy += 8;
+      civ_font_render_aligned(renderer, font_hud, "POLITICAL POSITIONS", cx, dy, 200, 20, g_theme.warning, CIV_ALIGN_LEFT, CIV_VALIGN_TOP); dy += 26;
       for (size_t i = 0; i < gov->position_count && dy < sy + sh - 20; i++) { int indent = gov->positions[i].hierarchy_level * 18;
-        snprintf(buf, sizeof(buf), "%s", gov->positions[i].title); civ_font_render_aligned(renderer, font_hud, buf, cx + indent, dy, cw - indent, 18, 0xCCCCCC, CIV_ALIGN_LEFT, CIV_VALIGN_TOP); dy += 18;
-        snprintf(buf, sizeof(buf), "%s · %s · %d seat%s", gov->positions[i].selection_method, gov->positions[i].term, gov->positions[i].position_count, gov->positions[i].position_count > 1 ? "s" : ""); civ_font_render_aligned(renderer, font_hud, buf, cx + indent + 12, dy, cw - indent - 12, 14, 0x667788, CIV_ALIGN_LEFT, CIV_VALIGN_TOP); dy += 22; }
+        snprintf(buf, sizeof(buf), "%s", gov->positions[i].title); civ_font_render_aligned(renderer, font_hud, buf, cx + indent, dy, cw - indent, 18, g_theme.text_secondary, CIV_ALIGN_LEFT, CIV_VALIGN_TOP); dy += 18;
+        snprintf(buf, sizeof(buf), "%s · %s · %d seat%s", gov->positions[i].selection_method, gov->positions[i].term, gov->positions[i].position_count, gov->positions[i].position_count > 1 ? "s" : ""); civ_font_render_aligned(renderer, font_hud, buf, cx + indent + 12, dy, cw - indent - 12, 14, g_theme.text_dim, CIV_ALIGN_LEFT, CIV_VALIGN_TOP); dy += 22; }
     } else if (current_screen == SCR_ECONOMY) {
       civ_screen_economy_render(renderer, game, font_hud, cx, cy, cw, ch, sh - sy, input, local_cur, local_sym);
     } else if (current_screen == SCR_NEWS) {
       int dy = cy;
-      civ_font_render_aligned(renderer, font_hud, "GLOBAL NEWS FEED", cx, dy, cw, 24, 0xFFCC00, CIV_ALIGN_LEFT, CIV_VALIGN_TOP); dy += 32;
+      civ_font_render_aligned(renderer, font_hud, "GLOBAL NEWS FEED", cx, dy, cw, 24, g_theme.warning, CIV_ALIGN_LEFT, CIV_VALIGN_TOP); dy += 32;
       if (game->npc_engine) { civ_npc_engine_t *ne = (civ_npc_engine_t *)game->npc_engine; civ_decision_t decisions[12]; int nd = civ_npc_engine_get_recent(ne, 12, decisions);
         for (int i = 0; i < nd && dy < sy + sh - 20; i++) { civ_decision_t *d = &decisions[i]; char buf[256]; const char *cats[] = {"[MIL]","[ECO]","[POL]","[SOC]","[DIP]"};
-          snprintf(buf, sizeof(buf), "%s %s", cats[d->category % 5], d->description); civ_font_render_aligned(renderer, font_hud, buf, cx, dy, cw, 18, 0xCCCCCC, CIV_ALIGN_LEFT, CIV_VALIGN_TOP); dy += 18;
-          snprintf(buf, sizeof(buf), "  %s — Year %d, Day %d | Stab %+.2f Eco %+.2f Dip %+.2f", d->nation_id, d->global_year, d->global_day, d->stability_effect, d->economic_effect, d->diplomatic_effect); civ_font_render_aligned(renderer, font_hud, buf, cx+12, dy, cw-12, 14, 0x556677, CIV_ALIGN_LEFT, CIV_VALIGN_TOP); dy += 20; }
-        if (nd == 0) civ_font_render_aligned(renderer, font_hud, "No news yet", cx, dy, cw, 24, 0x556677, CIV_ALIGN_CENTER, CIV_VALIGN_TOP); }
+          snprintf(buf, sizeof(buf), "%s %s", cats[d->category % 5], d->description); civ_font_render_aligned(renderer, font_hud, buf, cx, dy, cw, 18, g_theme.text_secondary, CIV_ALIGN_LEFT, CIV_VALIGN_TOP); dy += 18;
+          snprintf(buf, sizeof(buf), "  %s — Year %d, Day %d | Stab %+.2f Eco %+.2f Dip %+.2f", d->nation_id, d->global_year, d->global_day, d->stability_effect, d->economic_effect, d->diplomatic_effect); civ_font_render_aligned(renderer, font_hud, buf, cx+12, dy, cw-12, 14, g_theme.text_dim, CIV_ALIGN_LEFT, CIV_VALIGN_TOP); dy += 20; }
+        if (nd == 0) civ_font_render_aligned(renderer, font_hud, "No news yet", cx, dy, cw, 24, g_theme.text_dim, CIV_ALIGN_CENTER, CIV_VALIGN_TOP); }
     } else if (current_screen == SCR_DASHBOARD) {
       civ_screen_dashboard_render(renderer, game, font_hud, cx, cy, cw, ch, sh - sy, input, local_cur, local_sym);
     } else if (current_screen == SCR_WORK) {
@@ -893,7 +971,7 @@ static void render(SDL_Renderer *renderer, int win_w, int win_h,
     } else if (current_screen == SCR_CONSTITUTION) {
       civ_screen_constitution_render(renderer, game, font_hud, cx, cy, cw, ch, sh - sy, input, local_cur, local_sym);
     } else {
-      civ_font_render_aligned(renderer, font_hud, "Screen under development", cx, cy + 60, cw, 30, 0x556677, CIV_ALIGN_CENTER, CIV_VALIGN_MIDDLE);
+      civ_font_render_aligned(renderer, font_hud, "Screen under development", cx, cy + 60, cw, 30, g_theme.text_dim, CIV_ALIGN_CENTER, CIV_VALIGN_MIDDLE);
     }
   }
 
@@ -907,17 +985,15 @@ static void render(SDL_Renderer *renderer, int win_w, int win_h,
   /* ── Layer 9: Sidebar navigation — full height left panel ─────── */
   {
     int sb_w = 220, sb_x = 0, sb_y = 0;
-    /* Full-height background — top bar renders over it */
     civ_render_rect_filled_alpha(renderer, sb_x, sb_y, sb_w, win_h,
-                                 0x080C18, 250);
-    civ_render_line(renderer, sb_w, 0, sb_w, win_h, 0x1A2A3A);
+                                 g_theme.bg_dark, 250);
+    civ_render_line(renderer, sb_w, 0, sb_w, win_h, g_theme.hud_border);
 
-    int cy = 44; /* below top bar */
-    /* Nav title */
-    civ_font_render_aligned(renderer, font_hud, "DOMINION", sb_x + 8, cy,
-                            sb_w - 16, 22, CIV_COLOR_PRIMARY,
+    int cy = 40;
+    civ_font_render_aligned(renderer, font_hud, "DOMINION", sb_x + 10, cy,
+                            sb_w - 20, 24, CIV_COLOR_PRIMARY,
                             CIV_ALIGN_LEFT, CIV_VALIGN_MIDDLE);
-    cy += 28;
+    cy += 30;
 
     /* Role-based dynamic nav */
     int nav_n = game->player_role.nav_count, nav_h = 26;
@@ -928,22 +1004,35 @@ static void render(SDL_Renderer *renderer, int win_w, int win_h,
       switch (ns) { case CIV_NAV_DASHBOARD:m=SCR_DASHBOARD;break; case CIV_NAV_WORK:m=SCR_WORK;break; case CIV_NAV_FINANCE:m=SCR_FINANCE;break; case CIV_NAV_HOUSING:m=SCR_HOUSING;break; case CIV_NAV_EDUCATION:m=SCR_EDUCATION;break; case CIV_NAV_NETWORK:m=SCR_NETWORK;break; case CIV_NAV_POLITICS:m=SCR_POLITICS;break; case CIV_NAV_HEALTH:m=SCR_HEALTH;break; case CIV_NAV_CONSTITUTION:m=SCR_CONSTITUTION;break; case CIV_NAV_NEWS:m=SCR_NEWS;break; case CIV_NAV_ECONOMY:m=SCR_ECONOMY;break; case CIV_NAV_GOVERNANCE:m=SCR_GOVERNANCE;break; case CIV_NAV_DIPLOMACY:m=SCR_DIPLOMACY;break; case CIV_NAV_MAP:m=SCR_MAP;break; default:m=SCR_DASHBOARD;break; }
       bool active = (current_screen == m);
       bool hov = civ_input_is_mouse_over(input, sb_x+4, cy, sb_w-8, nav_h);
-      uint32_t bg = active?0x003A5A:(hov?0x162033:0x080C18);
+      uint32_t bg = active?g_theme.primary_dark:(hov?g_theme.bg_light:g_theme.bg_dark);
       civ_render_rect_filled_alpha(renderer, sb_x+4, cy, sb_w-8, nav_h, bg, active?240:(hov?200:0));
       if (active) civ_render_rect_filled(renderer, sb_x+4, cy, 3, nav_h, CIV_COLOR_PRIMARY);
       const char *label = civ_nav_screen_label(ns);
-      civ_font_render_aligned(renderer, font_hud, label, sb_x+18, cy, sb_w-26, nav_h, active?0xFFFFFF:0xAABBCC, CIV_ALIGN_LEFT, CIV_VALIGN_MIDDLE);
+      civ_font_render_aligned(renderer, font_hud, label, sb_x+18, cy, sb_w-26, nav_h, active?0xFFFFFF:g_theme.text_secondary, CIV_ALIGN_LEFT, CIV_VALIGN_MIDDLE);
       if (input->mouse_left_pressed && hov) current_screen = m;
       cy += nav_h+3;
     }
 
-    /* Player info at bottom of sidebar */
-    cy = win_h - 110;
-    civ_render_line(renderer, sb_x + 8, cy, sb_w - 8, cy, 0x1A2A3A);
+    /* Player wallet at bottom of sidebar */
+    cy = win_h - 130;
+    civ_render_line(renderer, sb_x + 8, cy, sb_w - 8, cy, g_theme.hud_border);
+    cy += 6;
+    if (game->wallet.count > 0) {
+      float total = civ_wallet_total(&game->wallet, game->market);
+      char wbuf[48];
+      snprintf(wbuf, sizeof(wbuf), "Balance: $%.0f", total);
+      civ_font_render_aligned(renderer, font_hud, wbuf,
+                              sb_x + 8, cy, sb_w - 16, 16, g_theme.success,
+                              CIV_ALIGN_LEFT, CIV_VALIGN_MIDDLE);
+    }
+    cy += 20;
+
+    /* Player info */
+    civ_render_line(renderer, sb_x + 8, cy, sb_w - 8, cy, g_theme.hud_border);
     cy += 8;
     if (game->current_profile) {
       civ_font_render_aligned(renderer, font_hud, game->current_profile->name,
-                              sb_x + 8, cy, sb_w - 16, 18, 0x8899AA,
+                              sb_x + 8, cy, sb_w - 16, 18, g_theme.hud_text,
                               CIV_ALIGN_LEFT, CIV_VALIGN_MIDDLE);
     }
     cy += 22;
@@ -952,7 +1041,7 @@ static void render(SDL_Renderer *renderer, int win_w, int win_h,
       char bg_buf[48];
       snprintf(bg_buf, sizeof(bg_buf), "%s", civ_background_name(pc->background));
       civ_font_render_aligned(renderer, font_hud, bg_buf,
-                              sb_x + 8, cy, sb_w - 16, 16, 0x667788,
+                              sb_x + 8, cy, sb_w - 16, 16, g_theme.text_dim,
                               CIV_ALIGN_LEFT, CIV_VALIGN_MIDDLE);
     }
   }
@@ -962,6 +1051,9 @@ static void render(SDL_Renderer *renderer, int win_w, int win_h,
 
   /* ── Layer 13: Notifications ─────────── */
   /* TODO: toast notification system */
+
+  /* ── Layer 13: Toast notifications ───── */
+  toast_render(renderer);
 
   /* ── Layer 14: Debug overlay ─────────── */
   if (debug.enabled)

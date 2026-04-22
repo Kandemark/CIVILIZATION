@@ -171,6 +171,12 @@ civ_result_t civ_game_initialize(civ_game_t *game,
             ni, game->world_map->width, game->world_map->height);
       }
       printf("[GAME] Territory claimed for %d nations\n", nm->count);
+
+      /* Compute initial per-nation economies */
+      civ_nation_compute_all_economies(nm, game->world_map,
+          game->resource_map, &game->global_economy);
+      printf("[GAME] Per-nation economies computed, global GDP=%.1fM\n",
+             game->global_economy.gdp);
     }
   }
 
@@ -223,9 +229,9 @@ civ_result_t civ_game_initialize(civ_game_t *game,
   /* Initialize market with all real-world currencies */
   game->market = civ_market_create();
   printf("[GAME] %d global currencies active\n",
-         ((civ_market_engine_t *)game->market)->currency_count);
-  civ_market_generate_companies((civ_market_engine_t *)game->market, "Kenya");
-  civ_market_generate_companies((civ_market_engine_t *)game->market, "Global");
+         game->market->currency_count);
+  civ_market_generate_companies(game->market, "Kenya");
+  civ_market_generate_companies(game->market, "Global");
   civ_wallet_init(&game->wallet);
 
   /* --- Initialize economy modules --- */
@@ -237,7 +243,6 @@ civ_result_t civ_game_initialize(civ_game_t *game,
   game->extraction         = civ_extraction_create();
   game->manufacturing      = civ_manufacturing_create();
   game->energy             = civ_energy_create();
-  game->financial_market   = civ_market_create();
   game->commodity_market   = civ_resource_market_create();
   game->domestic_trade     = civ_domestic_trade_create();
   game->labor_market       = civ_labor_market_create();
@@ -274,9 +279,26 @@ civ_result_t civ_game_end_turn(civ_game_t *game) {
                                 game->nation_manager,
                                 te->global.global_year, te->global.global_day);
   }
-  /* Market fluctuation */
-  if (game->market)
-    civ_market_update((civ_market_engine_t *)game->market);
+  /* Market fluctuation — feed production data to influence prices */
+  if (game->market) {
+    civ_market_update(game->market);
+    civ_market_apply_production(game->market,
+        game->global_economy.gdp,
+        game->global_economy.food_production,
+        game->global_economy.energy_output,
+        game->global_economy.industrial_output);
+  }
+
+  /* Feed player wallet from tax revenue (small fraction per turn) */
+  if (game->nation_manager && game->wallet.count == 0) {
+    civ_wallet_add(&game->wallet, "USD", 50000.0f);
+  } else if (game->current_turn % 5 == 0) {
+    float income = game->global_economy.tax_revenue * 0.001f;
+    if (income > 0 && game->wallet.count > 0)
+      civ_wallet_add(&game->wallet,
+          game->wallet.slots[0].currency_iso, income);
+  }
+
   printf("[GAME] Advanced to turn %d\n", game->current_turn);
 
   // Reset unit movement
@@ -497,6 +519,14 @@ void civ_game_update(civ_game_t *game) {
    * modules above it. Circular deps use previous-cycle (lagged) values.
    * ================================================================ */
 
+  /* Recompute per-nation economies every 10 turns */
+  if (game->nation_manager && game->world_map &&
+      game->current_turn % 10 == 1) {
+    civ_nation_compute_all_economies(
+        (civ_nation_manager_t *)game->nation_manager,
+        game->world_map, game->resource_map, &game->global_economy);
+  }
+
   /* --- Extract baseline data from core systems --- */
   int64_t   total_pop  = 0;
   civ_float_t tech_lev  = 1.0;
@@ -626,6 +656,14 @@ void civ_game_update(civ_game_t *game) {
     debt_interest_rate   = game->budget->debt_interest_rate;
     savings_rate         = 1.0 - gov_spending_ratio;
     if (savings_rate < 0.05) savings_rate = 0.05;
+  }
+
+  /* =================================================================
+   * Phase 1e2: commodity_market (update resource prices)
+   * ================================================================= */
+  if (game->commodity_market) {
+    game->commodity_market->global_price_index = 1.0f + inflation;
+    civ_resource_market_update_all(game->commodity_market);
   }
 
   /* =================================================================
@@ -919,7 +957,6 @@ void civ_game_shutdown(civ_game_t *game) {
   if (game->extraction)         civ_extraction_destroy(game->extraction);
   if (game->manufacturing)      civ_manufacturing_destroy(game->manufacturing);
   if (game->energy)             civ_energy_destroy(game->energy);
-  if (game->financial_market)   civ_market_destroy(game->financial_market);
   if (game->commodity_market)   civ_resource_market_destroy(game->commodity_market);
   if (game->domestic_trade)     civ_domestic_trade_destroy(game->domestic_trade);
   if (game->labor_market)       civ_labor_market_destroy(game->labor_market);

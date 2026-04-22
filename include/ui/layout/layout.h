@@ -43,6 +43,9 @@ typedef struct {
   float          gap;
   float          pad_top, pad_right, pad_bottom, pad_left;
   float          container_x, container_y, container_w, container_h;
+  /* Internal cursor — reset by civ_flex_init */
+  float          cursor_x, cursor_y;
+  bool           first_child;
 } civ_flex_layout_t;
 
 void civ_flex_init(civ_flex_layout_t *fl, float x, float y, float w, float h,

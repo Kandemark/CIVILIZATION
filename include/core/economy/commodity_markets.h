@@ -56,5 +56,6 @@ civ_result_t civ_resource_register(civ_commodity_market_t *market,
                                    civ_resource_category_t cat);
 void civ_resource_update_price(civ_regional_resource_t *res,
                                civ_float_t global_index);
+void civ_resource_market_update_all(civ_commodity_market_t *market);
 
 #endif /* CIVILIZATION_RESOURCE_MARKET_H */

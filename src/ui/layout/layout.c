@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* ── Flex layout ────────────────────────────────────────────────────── */
 void civ_flex_init(civ_flex_layout_t *fl, float x, float y, float w, float h,
                    civ_flex_dir_t dir) {
   memset(fl, 0, sizeof(*fl));
@@ -13,46 +12,71 @@ void civ_flex_init(civ_flex_layout_t *fl, float x, float y, float w, float h,
   fl->justify = CIV_JUSTIFY_START;
   fl->gap = 8.0f;
   fl->pad_left = fl->pad_right = fl->pad_top = fl->pad_bottom = 0.0f;
+  fl->cursor_x = fl->container_x + fl->pad_left;
+  fl->cursor_y = fl->container_y + fl->pad_top;
+  fl->first_child = true;
 }
 
 void civ_flex_next(civ_flex_layout_t *fl, float child_w, float child_h,
                    float *ox, float *oy, float *ow, float *oh) {
-  static float cursor_x, cursor_y;
-  static bool first = true;
-  if (first) { cursor_x = fl->container_x + fl->pad_left;
-               cursor_y = fl->container_y + fl->pad_top; first = false; }
+  if (!fl || !ox || !oy || !ow || !oh) return;
 
   float avail_w = fl->container_w - fl->pad_left - fl->pad_right;
   float avail_h = fl->container_h - fl->pad_top - fl->pad_bottom;
 
   if (fl->direction == CIV_FLEX_ROW) {
-    if (cursor_x + child_w > fl->container_x + fl->pad_left + avail_w) {
-      cursor_x = fl->container_x + fl->pad_left;
-      cursor_y += child_h + fl->gap;
+    if (!fl->first_child &&
+        fl->cursor_x + child_w > fl->container_x + fl->pad_left + avail_w) {
+      fl->cursor_x = fl->container_x + fl->pad_left;
+      fl->cursor_y += child_h + fl->gap;
     }
-    *ox = cursor_x; *oy = cursor_y;
-    *ow = (fl->align == CIV_ALIGN_STRETCH) ? child_w : child_w;
-    *oh = (fl->align == CIV_ALIGN_STRETCH) ? avail_h - (cursor_y - fl->container_y - fl->pad_top) : child_h;
-    cursor_x += child_w + fl->gap;
+    *ox = fl->cursor_x; *oy = fl->cursor_y;
+    *ow = child_w;
+    *oh = (fl->align == CIV_ALIGN_STRETCH)
+        ? avail_h - (fl->cursor_y - fl->container_y - fl->pad_top) : child_h;
+    fl->cursor_x += child_w + fl->gap;
   } else {
-    if (cursor_y + child_h > fl->container_y + fl->pad_top + avail_h) {
-      cursor_y = fl->container_y + fl->pad_top;
-      cursor_x += child_w + fl->gap;
+    if (!fl->first_child &&
+        fl->cursor_y + child_h > fl->container_y + fl->pad_top + avail_h) {
+      fl->cursor_y = fl->container_y + fl->pad_top;
+      fl->cursor_x += child_w + fl->gap;
     }
-    *ox = cursor_x; *oy = cursor_y;
-    *ow = (fl->align == CIV_ALIGN_STRETCH) ? avail_w - (cursor_x - fl->container_x - fl->pad_left) : child_w;
+    *ox = fl->cursor_x; *oy = fl->cursor_y;
+    *ow = (fl->align == CIV_ALIGN_STRETCH)
+        ? avail_w - (fl->cursor_x - fl->container_x - fl->pad_left) : child_w;
     *oh = child_h;
-    cursor_y += child_h + fl->gap;
+    fl->cursor_y += child_h + fl->gap;
   }
+  fl->first_child = false;
 }
 
 int civ_flex_layout_row(civ_flex_layout_t *fl, float item_w, float item_h,
                         float **out_positions) {
-  (void)fl; (void)item_w; (void)item_h; (void)out_positions;
-  return 0; /* stub */
+  if (!fl || !out_positions) return 0;
+
+  float avail_w = fl->container_w - fl->pad_left - fl->pad_right;
+  int count = (int)((avail_w + fl->gap) / (item_w + fl->gap));
+  if (count < 1) count = 1;
+  if (count > 64) count = 64;
+
+  float *positions = malloc((size_t)count * 2 * sizeof(float));
+  if (!positions) return 0;
+
+  fl->cursor_x = fl->container_x + fl->pad_left;
+  fl->cursor_y = fl->container_y + fl->pad_top;
+  fl->first_child = true;
+
+  for (int i = 0; i < count; i++) {
+    float ox, oy, ow, oh;
+    civ_flex_next(fl, item_w, item_h, &ox, &oy, &ow, &oh);
+    positions[i * 2] = ox;
+    positions[i * 2 + 1] = oy;
+  }
+
+  *out_positions = positions;
+  return count;
 }
 
-/* ── Grid layout ─────────────────────────────────────────────────────── */
 void civ_grid_init(civ_grid_layout_t *gl, float x, float y, float w, float h,
                    int cols, int rows) {
   memset(gl, 0, sizeof(*gl));
@@ -64,6 +88,7 @@ void civ_grid_init(civ_grid_layout_t *gl, float x, float y, float w, float h,
 
 void civ_grid_cell(civ_grid_layout_t *gl, int col, int row, int col_span,
                    int row_span, float *ox, float *oy, float *ow, float *oh) {
+  if (!gl || !ox || !oy || !ow || !oh) return;
   float cell_w = (gl->container_w - (float)(gl->columns - 1) * gl->gap -
                   gl->pad_left - gl->pad_right) / (float)gl->columns;
   float cell_h = (gl->container_h - (float)(gl->rows - 1) * gl->gap -
