@@ -127,13 +127,18 @@ void civ_app_controller_run(civ_app_controller_t *app) {
     civ_window_mgr_input(&app->window_mgr, &app->input);
 
     civ_window_clear(app->window, CIV_COLOR_BG_DARK);
+
+    /* Nuklear begin — sets g_nk_ctx so scenes can render Nuklear UI */
+    nk_ui_begin();
+
     civ_scene_manager_render(civ_window_get_renderer(app->window), win_w, win_h,
                              app->game, &app->input);
     civ_window_mgr_render(&app->window_mgr, civ_window_get_renderer(app->window),
                           NULL);
-    /* Nuklear overlay — any scene can use g_nk_ctx to render Nuklear UI */
-    nk_ui_begin();
+
+    /* Nuklear end — flushes all draw commands */
     nk_ui_end();
+
     civ_window_present(app->window);
 
     civ_input_end_frame(&app->input);
