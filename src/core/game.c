@@ -301,6 +301,15 @@ civ_result_t civ_game_end_turn(civ_game_t *game) {
 
   printf("[GAME] Advanced to turn %d\n", game->current_turn);
 
+  /* Autosave every 10 turns */
+  if (game->current_turn % 10 == 0 && game->current_profile) {
+    char path[256];
+    civ_profile_get_save_path(game->current_profile->id, "autosave", path, sizeof(path));
+    civ_result_t sr = civ_game_save_state(game, path);
+    if (sr.error == CIV_OK)
+      printf("[GAME] Autosaved to %s\n", path);
+  }
+
   // Reset unit movement
   if (game->unit_manager && game->unit_manager->units) {
     for (size_t i = 0; i < game->unit_manager->unit_count; i++) {

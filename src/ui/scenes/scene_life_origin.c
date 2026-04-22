@@ -112,7 +112,7 @@ static void update(civ_game_t *game, civ_input_state_t *input) {
           input->mouse_y > ay && input->mouse_y < ay + 48) {
         for (int w = 0; w < 3; w++)
           scores[answer_weights[question_idx][a][w]] +=
-              answer_weights[question_idx][a][w + 1 > 2 ? 0 : 0];
+              answer_weights[question_idx][a][w];
         question_idx++;
         if (question_idx >= 4) compute_result();
         break;

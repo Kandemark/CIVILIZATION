@@ -32,7 +32,7 @@ civ_result_t civ_app_controller_init(civ_app_controller_t *app, int argc,
   }
 
   app->window =
-      civ_window_create("CIVILIZATION", 0, 0, CIV_WINDOW_FULLSCREEN_DESKTOP);
+      civ_window_create("Dominion", 1280, 720, CIV_WINDOW_RESIZABLE);
   if (!app->window) {
     civ_font_system_shutdown();
     SDL_Quit();
@@ -81,11 +81,12 @@ void civ_app_controller_run(civ_app_controller_t *app) {
       civ_input_process_event(&app->input, &event);
 
       if (event.type == SDL_EVENT_KEY_DOWN) {
-        if (event.key.key == SDLK_ESCAPE) {
+        if (event.key.key == SDLK_F4 &&
+            (event.key.mod & SDL_KMOD_ALT)) {
           app->running = false;
         }
         if (event.key.key == SDLK_F11) {
-          static bool is_fullscreen = true;
+          static bool is_fullscreen = false;
           is_fullscreen = !is_fullscreen;
           civ_window_set_fullscreen(app->window, is_fullscreen);
         }
