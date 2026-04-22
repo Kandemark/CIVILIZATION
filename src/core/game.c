@@ -1034,7 +1034,8 @@ typedef struct {
   float             char_reputation;
   float             char_influence;
   int32_t           char_skills[10];
-  uint32_t          reserved[8];
+  int32_t           player_nation_idx;
+  uint32_t          reserved[7];
 } civ_save_header_t;
 
 civ_result_t civ_game_save_state(civ_game_t *game, const char *filename) {
@@ -1084,6 +1085,12 @@ civ_result_t civ_game_save_state(civ_game_t *game, const char *filename) {
     header.char_influence = pc->political_influence;
     memcpy(header.char_skills, pc->skills, sizeof(pc->skills));
   }
+  /* Player nation index */
+  if (game->nation_manager)
+    header.player_nation_idx =
+        ((civ_nation_manager_t *)game->nation_manager)->player_nation_index;
+  else
+    header.player_nation_idx = -1;
 
   // 2. Serialize Map Data (Tiles)
   size_t map_size = 0;
@@ -1104,9 +1111,26 @@ civ_result_t civ_game_save_state(civ_game_t *game, const char *filename) {
     memcpy(buffer + sizeof(header), map_data, map_size);
   }
 
-  // 4. Save
-  civ_result_t res = civ_state_persistence_save(game->persistence, filename,
-                                                buffer, total_size);
+  // 4. Save directly — ensure directory exists
+  /* Extract directory from filename and create it */
+  char dir[512];
+  snprintf(dir, sizeof(dir), "%s", filename);
+  char *slash = strrchr(dir, '/');
+  if (slash) { *slash = '\0'; SDL_CreateDirectory(dir); }
+  /* Also ensure intermediate dirs */
+  for (char *p = dir; *p; p++) {
+    if (*p == '/') { *p = '\0'; SDL_CreateDirectory(dir); *p = '/'; }
+  }
+  civ_result_t res = {CIV_OK, "Saved"};
+  FILE *sf = fopen(filename, "wb");
+  if (!sf) {
+    res = (civ_result_t){CIV_ERROR_IO, "Cannot open save file"};
+  } else {
+    size_t written = fwrite(buffer, 1, total_size, sf);
+    fclose(sf);
+    if (written != total_size)
+      res = (civ_result_t){CIV_ERROR_IO, "Write incomplete"};
+  }
   CIV_FREE(buffer);
   return res;
 }
@@ -1116,20 +1140,26 @@ civ_result_t civ_game_load_state(civ_game_t *game, const char *filename) {
     return (civ_result_t){CIV_ERROR_INVALID_ARGUMENT,
                           "Invalid game or persistence"};
 
-  // 1. Load File Data
-  // Use a large buffer for the expanded world scale (2048x1024)
-  size_t buffer_cap = 256 * 1024 * 1024; // 256MB
-  uint8_t *buffer = (uint8_t *)CIV_MALLOC(buffer_cap);
-  if (!buffer)
-    return (civ_result_t){CIV_ERROR_OUT_OF_MEMORY, "Buffer allocation failed"};
-
-  size_t data_size = buffer_cap;
-  civ_result_t res = civ_state_persistence_load(game->persistence, filename,
-                                                buffer, &data_size);
-  if (res.error != CIV_OK) {
-    CIV_FREE(buffer);
-    return res;
+  // 1. Load directly from file (don't use persistence layer)
+  FILE *lf = fopen(filename, "rb");
+  if (!lf) {
+    return (civ_result_t){CIV_ERROR_NOT_FOUND, "Save file not found"};
   }
+  fseek(lf, 0, SEEK_END);
+  long file_size = ftell(lf);
+  fseek(lf, 0, SEEK_SET);
+  if (file_size <= 0) { fclose(lf); return (civ_result_t){CIV_ERROR_INVALID_DATA, "Empty file"}; }
+
+  size_t buffer_cap = (size_t)file_size + 4096;
+  uint8_t *buffer = (uint8_t *)CIV_MALLOC(buffer_cap);
+  if (!buffer) { fclose(lf); return (civ_result_t){CIV_ERROR_OUT_OF_MEMORY, "Buffer alloc"}; }
+
+  size_t data_size = (size_t)file_size;
+  if (fread(buffer, 1, data_size, lf) != data_size) {
+    fclose(lf); CIV_FREE(buffer);
+    return (civ_result_t){CIV_ERROR_IO, "Read failed"};
+  }
+  fclose(lf);
 
   // 2. Parse Header
   if (data_size < sizeof(civ_save_header_t)) {
@@ -1182,6 +1212,13 @@ civ_result_t civ_game_load_state(civ_game_t *game, const char *filename) {
   }
   /* Restore turn */
   game->current_turn = header->turn;
+
+  /* Restore player nation index */
+  if (header->player_nation_idx >= 0 && game->nation_manager) {
+    civ_nation_manager_t *nm = (civ_nation_manager_t *)game->nation_manager;
+    nm->player_nation_index = header->player_nation_idx;
+    printf("[GAME] Restored player nation index: %d\n", header->player_nation_idx);
+  }
 
   CIV_FREE(buffer);
   return (civ_result_t){CIV_OK, "Game loaded successfully"};
