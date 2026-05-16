@@ -2,7 +2,7 @@
 
 A high-fidelity grand strategy simulation built with SDL3. Unlike traditional 4X games, this is an **Agnostic Total Simulation** where success is defined purely by evolutionary growth and functional institutional control.
 
-## 核心 (Core Simulation Philosophy)
+## (Core Simulation Philosophy)
 
 *   **Agnostic Governance**: No "best" political system. A nation's stability depends on how well its branches (Executive, Legislative, Judicial) function within their own evolving rules and institutions.
 *   **Total Social Simulation**: Stability and identity are emergent properties of **Language, Religion, Ideology, and Culture**. 
