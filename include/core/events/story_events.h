@@ -8,7 +8,6 @@
 
 #include "../../common.h"
 #include "../../types.h"
-#include "../../ui/onboarding_engine.h"
 
 /* Early Game States */
 typedef enum {

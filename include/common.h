@@ -57,7 +57,8 @@ typedef enum {
   CIV_ERROR_NOT_FOUND = -4,
   CIV_ERROR_INVALID_STATE = -5,
   CIV_ERROR_IO = -6,
-  CIV_ERROR_INVALID_DATA = -7
+  CIV_ERROR_INVALID_DATA = -7,
+  CIV_ERROR_INITIALIZATION_FAILED = -8
 } civ_error_t;
 
 /* Result type for operations */

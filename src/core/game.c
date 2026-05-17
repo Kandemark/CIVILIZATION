@@ -129,6 +129,9 @@ civ_result_t civ_game_initialize(civ_game_t *game,
   civ_strategic_ai_t *rival_ai = civ_strategic_ai_create("RIVAL", "Rival King");
   civ_ai_system_add_strategic(game->ai_system, rival_ai);
 
+  /* Initialize system orchestrator — systems register here for dependency-ordered updates */
+  game->system_orchestrator = civ_system_orchestrator_create();
+
   game->state = CIV_GAME_STATE_RUNNING;
   game->is_running = true;
   game->is_paused = false;
@@ -343,30 +346,64 @@ void civ_game_update(civ_game_t *game) {
   if (!game || !game->is_running || game->is_paused)
     return;
 
-  // Update Time
+  /* Phase 0: Time — produces delta for all downstream systems */
+  civ_float_t dt = 1.0f;
   if (game->time_manager) {
-    civ_time_manager_update(game->time_manager);
+    dt = civ_time_manager_update(game->time_manager);
   }
 
-  // Update Systems
-  // if (game->system_orchestrator) ...
-
-  // Simple update loop for now
+  /* Phase 1: Demographics & Economy */
   if (game->population_manager)
-    civ_population_manager_update(game->population_manager, 1.0f, NULL);
+    civ_population_manager_update(game->population_manager, dt, NULL);
   if (game->market_economy)
-    civ_market_dynamics_update(game->market_economy, 1.0f, NULL, NULL, 0.0f);
-  if (game->technology_tree)
-    civ_innovation_system_update(game->technology_tree, 1.0f);
+    civ_market_dynamics_update(game->market_economy, dt, NULL, NULL, 0.0f);
+  if (game->trade_manager)
+    civ_trade_update(game->trade_manager, dt);
 
-  // New Evolutionary Systems
-  civ_game_update_stature_rankings(game);
-
-  // Remaining updates
+  /* Phase 2: Diplomacy & Governance */
   if (game->diplomacy_system)
     civ_diplomacy_system_update_relations(game->diplomacy_system, 0);
+  if (game->government)
+    civ_government_update(game->government, dt);
+  /* Phase 3: Settlements & Production */
+  if (game->settlement_manager)
+    civ_settlement_manager_update(game->settlement_manager, game->world_map,
+                                  game->government, dt);
+
+  /* Phase 4: Technology */
+  if (game->technology_tree)
+    civ_innovation_system_update(game->technology_tree, dt);
+
+  /* Phase 5: Culture & Society */
   if (game->culture_system)
-    civ_culture_system_update(game->culture_system, 1.0f);
+    civ_culture_system_update(game->culture_system, dt);
+  if (game->politics_system)
+    civ_politics_system_update(game->politics_system, dt);
+
+  /* Phase 6: Military */
+  if (game->conquest_system)
+    civ_conquest_update(game->conquest_system, dt);
+
+  /* Phase 7: Territory & Borders */
+  if (game->dynamic_borders)
+    civ_dynamic_borders_update(game->dynamic_borders, dt);
+  if (game->territory_manager)
+    civ_territory_manager_update(game->territory_manager, dt);
+
+  /* Phase 8: AI reacts to current world state */
+  if (game->ai_system)
+    civ_ai_system_update(game->ai_system, dt);
+  if (game->subunit_manager)
+    civ_subunit_manager_update(game->subunit_manager, dt);
+
+  /* Phase 9: Events & Disasters */
+  if (game->event_manager)
+    civ_event_manager_update(game->event_manager, dt);
+  if (game->disaster_manager)
+    civ_disaster_update(game->disaster_manager, dt);
+
+  /* Phase 10: Stature rankings (computed from all above) */
+  civ_game_update_stature_rankings(game);
 
   game->performance.update_count++;
 }
@@ -416,6 +453,8 @@ void civ_game_shutdown(civ_game_t *game) {
     civ_wonder_manager_destroy(game->wonder_manager);
   if (game->persistence)
     civ_state_persistence_destroy(game->persistence);
+  if (game->system_orchestrator)
+    civ_system_orchestrator_destroy(game->system_orchestrator);
   // ... destroy others ...
 }
 

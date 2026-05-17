@@ -19,6 +19,42 @@ struct civ_font {
   char name[256];
 };
 
+/* System font detection for Linux */
+static char *find_system_font_linux(const char *font_name) {
+  static char font_path[512];
+  const char *filename = NULL;
+
+  if (strcmp(font_name, "DejaVu Sans") == 0 || strcmp(font_name, "Arial") == 0 ||
+      strcmp(font_name, "Segoe UI") == 0 || strcmp(font_name, "Calibri") == 0 ||
+      strcmp(font_name, "Verdana") == 0 || strcmp(font_name, "Consolas") == 0) {
+    filename = "DejaVuSans.ttf";
+  } else if (strcmp(font_name, "DejaVu Sans Mono") == 0) {
+    filename = "DejaVuSansMono.ttf";
+  } else if (strcmp(font_name, "DejaVu Serif") == 0) {
+    filename = "DejaVuSerif.ttf";
+  } else {
+    filename = "DejaVuSans.ttf";
+  }
+
+  const char *search_paths[] = {
+      "/usr/share/fonts/TTF/",
+      "/usr/share/fonts/truetype/",
+      "/usr/share/fonts/truetype/dejavu/",
+      "/usr/local/share/fonts/",
+      NULL};
+
+  for (int i = 0; search_paths[i]; i++) {
+    snprintf(font_path, sizeof(font_path), "%s%s", search_paths[i], filename);
+    FILE *f = fopen(font_path, "r");
+    if (f) {
+      fclose(f);
+      return font_path;
+    }
+  }
+
+  return NULL;
+}
+
 /* System font detection for Windows */
 static char *find_system_font_windows(const char *font_name) {
 #ifdef _WIN32
@@ -64,7 +100,14 @@ bool civ_font_system_init(void) {
 void civ_font_system_shutdown(void) { TTF_Quit(); }
 
 civ_font_t *civ_font_load_system(const char *name, int size) {
-  char *font_path = find_system_font_windows(name);
+  char *font_path = NULL;
+
+#ifdef _WIN32
+  font_path = find_system_font_windows(name);
+#else
+  font_path = find_system_font_linux(name);
+#endif
+
   if (!font_path) {
     fprintf(stderr, "Failed to find system font: %s\n", name);
     return NULL;

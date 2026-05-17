@@ -1,36 +1,37 @@
-# Makefile for CIVILIZATION SDL3 (MinGW) - FULL GAME BUILD
-#
-# This builds the complete game with all systems enabled
+# Makefile for DOMINION SDL3 (Linux) - FULL GAME BUILD
 
 # Compiler and flags
 CC = gcc
-CFLAGS = -std=c11 -Iinclude -IC:/SDL/SDL3-3.4.0/x86_64-w64-mingw32/include -IC:/SDL/SDL3_ttf-3.2.2/x86_64-w64-mingw32/include -Wall -Wno-unused-variable -Wno-unused-function
-LDFLAGS = -LC:/SDL/SDL3-3.4.0/x86_64-w64-mingw32/lib -LC:/SDL/SDL3_ttf-3.2.2/x86_64-w64-mingw32/lib
-LIBS = -lSDL3 -lSDL3_ttf -lm
+SDL3_CFLAGS = $(shell pkg-config --cflags sdl3 sdl3-ttf 2>/dev/null || echo "-I/usr/include/SDL3 -I/usr/include/SDL3_ttf")
+SDL3_LIBS = $(shell pkg-config --libs sdl3 sdl3-ttf 2>/dev/null || echo "-lSDL3 -lSDL3_ttf")
+CFLAGS = -std=c11 -Iinclude $(SDL3_CFLAGS) -Wall -Wno-unused-variable -Wno-unused-function
+LDFLAGS =
+LIBS = $(SDL3_LIBS) -lm
 
 # Build type
 DEBUG_FLAGS = -g -O0 -DDEBUG
-RELEASE_FLAGS = -O3 -DNDEBUG
+RELEASE_FLAGS = -O3 -DNDEBUG -flto -march=native -mtune=native -fomit-frame-pointer -ffast-math -funroll-loops
 
 # Directories
 BUILD_DIR = build
 OBJ_DIR = $(BUILD_DIR)/obj
 
 # Target
-TARGET = $(BUILD_DIR)/civilization.exe
+TARGET = $(BUILD_DIR)/dominion
 
-# SDL3 Engine sources (REQUIRED)
+# Engine sources
 ENGINE_SRCS = \
 	src/engine/window.c \
 	src/engine/renderer.c \
 	src/engine/input.c \
 	src/engine/font.c
 
-# UI sources (REQUIRED)
+# UI sources
 UI_SRCS = \
 	src/ui/sdl3_main.c \
 	src/ui/button.c \
 	src/ui/ui_common.c \
+	src/ui/app_controller.c \
 	src/ui/scene_manager.c \
 	src/ui/scenes/scene_splash.c \
 	src/ui/scenes/scene_profile_select.c \
@@ -116,83 +117,73 @@ UTILS_SRCS = \
 	src/utils/memory_pool.c \
 	src/utils/config.c \
 	src/utils/cache.c \
-	src/utils/utils.c \
 	src/utils/noise.c
-
-# Systems sources
-SYSTEMS_SRCS = \
-	src/systems/climate.c \
-	src/systems/biomes.c \
-	src/systems/geography.c \
-	src/systems/events.c \
-	src/systems/politics.c
 
 # Visuals
 VISUAL_SRCS = \
 	src/core/visuals/vexillology.c
 
-#All sources
-SRCS = $(ENGINE_SRCS) $(UI_SRCS) $(CORE_SRCS) $(UTILS_SRCS) $(SYSTEMS_SRCS) $(VISUAL_SRCS)
+# All sources
+SRCS = $(ENGINE_SRCS) $(UI_SRCS) $(CORE_SRCS) $(UTILS_SRCS) $(VISUAL_SRCS)
 
 # Object files
 OBJS = $(patsubst src/%.c,$(OBJ_DIR)/%.o,$(SRCS))
 
 # Default target: release build
-all: $(TARGET) copy_dlls
-	@echo.
-	@echo ========================================
-	@echo   CIVILIZATION - SDL3 Build Complete!
-	@echo ========================================
-	@echo   Run: cd build ^&^& civilization.exe
-	@echo ========================================
-	@echo.
+.PHONY: all release debug clean help
 
-# Release build
+all: release
+
 release: CFLAGS += $(RELEASE_FLAGS)
-release: $(TARGET) copy_dlls
+release: $(TARGET)
+	@echo ""
+	@echo "========================================"
+	@echo "  DOMINION - SDL3 Build Complete!"
+	@echo "========================================"
+	@echo "  Run: ./build/dominion"
+	@echo "========================================"
+	@echo ""
 
-# Debug build
 debug: CFLAGS += $(DEBUG_FLAGS)
-debug: $(TARGET) copy_dlls
+debug: $(TARGET)
+	@echo ""
+	@echo "========================================"
+	@echo "  DOMINION - Debug Build Complete!"
+	@echo "========================================"
+	@echo "  Run: ./build/dominion"
+	@echo "========================================"
+	@echo ""
 
 # Link
 $(TARGET): $(OBJS)
-	@echo.
-	@echo === Linking executable ===
-	@if not exist "$(BUILD_DIR)" mkdir "$(BUILD_DIR)"
+	@echo ""
+	@echo "=== Linking executable ==="
+	@mkdir -p "$(BUILD_DIR)"
 	$(CC) -o $@ $^ $(LDFLAGS) $(LIBS)
-	@echo.
+	@echo ""
 
 # Compile source files
 $(OBJ_DIR)/%.o: src/%.c
-	@echo Compiling $<...
-	@if not exist "$(dir $@)" mkdir "$(dir $@)"
+	@echo "Compiling $<..."
+	@mkdir -p "$(dir $@)"
 	$(CC) $(CFLAGS) -c $< -o $@
-
-# Copy SDL DLLs to build directory
-copy_dlls:
-	@echo Copying SDL3 DLLs...
-	@if not exist "$(BUILD_DIR)\SDL3.dll" copy /Y "C:\SDL\SDL3-3.4.0\x86_64-w64-mingw32\bin\SDL3.dll" "$(BUILD_DIR)" >nul 2>&1
-	@if not exist "$(BUILD_DIR)\SDL3_ttf.dll" copy /Y "C:\SDL\SDL3_ttf-3.2.2\x86_64-w64-mingw32\bin\SDL3_ttf.dll" "$(BUILD_DIR)" >nul 2>&1
 
 # Clean build files
 clean:
-	@echo Cleaning build files...
-	@if exist "$(BUILD_DIR)" rmdir /s /q "$(BUILD_DIR)"
-	@echo Clean complete.
+	@echo "Cleaning build files..."
+	@rm -rf "$(BUILD_DIR)"
+	@echo "Clean complete."
 
 # Display help
 help:
-	@echo Makefile for CIVILIZATION SDL3 - FULL GAME
-	@echo.
-	@echo Targets:
-	@echo   all      - Build release version (default)
-	@echo   release  - Build optimized release version
-	@echo   debug    - Build with debug symbols
-	@echo   clean    - Remove all build files
-	@echo   help     - Display this help message
-	@echo.
-	@echo Source files: $(words $(SRCS)) files
-	@echo.
-
-.PHONY: all release debug clean copy_dlls help
+	@echo "Makefile for DOMINION SDL3 - Linux"
+	@echo ""
+	@echo "Targets:"
+	@echo "  all      - Build release version (default)"
+	@echo "  release  - Build optimized release version"
+	@echo "  debug    - Build with debug symbols"
+	@echo "  clean    - Remove all build files"
+	@echo "  help     - Display this help message"
+	@echo ""
+	@echo "Source files: $(words $(SRCS)) files"
+	@echo ""

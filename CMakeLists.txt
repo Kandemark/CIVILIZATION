@@ -1,30 +1,18 @@
 cmake_minimum_required(VERSION 3.10)
-project(Civilization VERSION 1.0.0 LANGUAGES C)
+project(dominion VERSION 1.0.0 LANGUAGES C)
 
 # C standard
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
-# SDL3 paths
-set(SDL3_DIR "C:/SDL/SDL3-3.4.0/x86_64-w64-mingw32")
-set(SDL3_TTF_DIR "C:/SDL/SDL3_ttf-3.2.2/x86_64-w64-mingw32")
-
-set(SDL3_INCLUDE_DIR "${SDL3_DIR}/include/SDL3")
-set(SDL3_TTF_INCLUDE_DIR "${SDL3_TTF_DIR}/include/SDL3_ttf")
-set(SDL3_LIB_DIR "${SDL3_DIR}/lib")
-set(SDL3_TTF_LIB_DIR "${SDL3_TTF_DIR}/lib")
+# Find SDL3 and SDL3_ttf via pkg-config
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(SDL3 REQUIRED IMPORTED_TARGET sdl3)
+pkg_check_modules(SDL3_TTF REQUIRED IMPORTED_TARGET sdl3-ttf)
 
 # Include directories
 include_directories(
     ${CMAKE_SOURCE_DIR}/include
-    ${SDL3_INCLUDE_DIR}
-    ${SDL3_TTF_INCLUDE_DIR}
-)
-
-# Link directories
-link_directories(
-    ${SDL3_LIB_DIR}
-    ${SDL3_TTF_LIB_DIR}
 )
 
 # Engine sources
@@ -51,7 +39,7 @@ set(UI_SOURCES
     src/ui/scenes/scene_game.c
 )
 
-# Core game sources (preserved from original)
+# Core game sources
 set(CORE_SOURCES
     src/core/game.c
     src/core/profile.c
@@ -129,90 +117,60 @@ set(UTILS_SOURCES
     src/utils/memory_pool.c
     src/utils/config.c
     src/utils/cache.c
-    src/utils/utils.c
     src/core/visuals/vexillology.c
     src/utils/noise.c
 )
 
-# Systems sources
-set(SYSTEMS_SOURCES
-    src/systems/climate.c
-    src/systems/biomes.c
-    src/systems/geography.c
-    src/systems/events.c
-    src/systems/politics.c
-)
-
 # Create main executable
-add_executable(civilization
+add_executable(dominion
     ${ENGINE_SOURCES}
     ${UI_SOURCES}
     ${CORE_SOURCES}
     ${UTILS_SOURCES}
-    ${SYSTEMS_SOURCES}
 )
 
-# Link SDL3 libraries
-target_link_libraries(civilization PRIVATE
-    SDL3
-    SDL3_ttf
-    m  # Math library
+# Link SDL3 libraries via pkg-config imported targets
+target_link_libraries(dominion PRIVATE
+    PkgConfig::SDL3
+    PkgConfig::SDL3_TTF
+    m
+)
+
+# Add SDL3 include directories from pkg-config
+target_include_directories(dominion PRIVATE
+    ${SDL3_INCLUDE_DIRS}
+    ${SDL3_TTF_INCLUDE_DIRS}
 )
 
 # Compiler flags
-if(MSVC)
-    target_compile_options(civilization PRIVATE /W4)
-else()
-    target_compile_options(civilization PRIVATE -Wall -Wextra -Wpedantic)
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(dominion PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
 # Debug flags
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    target_compile_definitions(civilization PRIVATE DEBUG=1)
-    if(MSVC)
-        target_compile_options(civilization PRIVATE /Od /Zi)
-    else()
-        target_compile_options(civilization PRIVATE -g -O0)
-    endif()
+    target_compile_definitions(dominion PRIVATE DEBUG=1)
+    target_compile_options(dominion PRIVATE -g -O0)
 endif()
 
 # Release flags - OPTIMIZED
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
-    if(MSVC)
-        target_compile_options(civilization PRIVATE 
-            /O2 /GL /Oi /Ot /Oy /fp:fast
-        )
-        target_link_options(civilization PRIVATE /LTCG)
-    else()
-        target_compile_options(civilization PRIVATE 
-            -O3 -DNDEBUG -flto -march=native
-            -mtune=native -fomit-frame-pointer
-            -ffast-math -funroll-loops
-        )
-        target_link_options(civilization PRIVATE -flto)
-    endif()
-endif()
-
-# Copy SDL3 DLLs to build directory on Windows
-if(WIN32)
-    add_custom_command(TARGET civilization POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${SDL3_DIR}/bin/SDL3.dll"
-            $<TARGET_FILE_DIR:civilization>
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${SDL3_TTF_DIR}/bin/SDL3_ttf.dll"
-            $<TARGET_FILE_DIR:civilization>
-        COMMENT "Copying SDL3 DLLs to build directory"
+    target_compile_definitions(dominion PRIVATE NDEBUG)
+    target_compile_options(dominion PRIVATE
+        -O3 -DNDEBUG -flto -march=native
+        -mtune=native -fomit-frame-pointer
+        -ffast-math -funroll-loops
     )
+    target_link_options(dominion PRIVATE -flto)
 endif()
 
-# Print build information
 message(STATUS "========================================")
-message(STATUS "CIVILIZATION - SDL3 Build Configuration")
+message(STATUS "DOMINION - SDL3 Build Configuration")
 message(STATUS "========================================")
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "C compiler: ${CMAKE_C_COMPILER}")
-message(STATUS "SDL3 directory: ${SDL3_DIR}")
-message(STATUS "SDL3_ttf directory: ${SDL3_TTF_DIR}")
+message(STATUS "SDL3 includes: ${SDL3_INCLUDE_DIRS}")
+message(STATUS "SDL3 libraries: ${SDL3_LIBRARIES}")
+message(STATUS "SDL3_ttf includes: ${SDL3_TTF_INCLUDE_DIRS}")
+message(STATUS "SDL3_ttf libraries: ${SDL3_TTF_LIBRARIES}")
 message(STATUS "========================================")
-
