@@ -24,16 +24,6 @@ Makefile
 *~
 .DS_Store
 
-# Python (to be removed)
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-venv/
-env/
-ENV/
-
 # Temporary files
 *.tmp
 *.log
