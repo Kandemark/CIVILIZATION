@@ -165,8 +165,19 @@ typedef struct civ_game {
 
   int32_t current_turn;
 
-  /* Player Profile */
-  civ_player_profile_t *current_profile;
+  /* Player identity */
+  civ_player_profile_t  *current_profile;
+  void                  *player_character; /* civ_character_t — opaque */
+  char                   faction_id[32];
+
+  /* Nations & territories */
+  void *nation_manager; /* civ_nation_manager_t — opaque */
+
+  /* Time engine */
+  void *time_engine;    /* civ_time_engine_t — opaque */
+
+  /* NPC engine */
+  void *npc_engine;     /* civ_npc_engine_t — opaque */
 } civ_game_t;
 
 /* Function declarations */

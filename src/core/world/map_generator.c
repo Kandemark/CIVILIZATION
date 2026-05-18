@@ -96,8 +96,8 @@ civ_result_t civ_map_generate(civ_map_t *map,
       tile->resources = 0.0f;
       tile->fertility = is_land ? 0.5f : 0.0f;
       tile->vegetation_density = is_land ? 0.3f : 0.0f;
-      tile->is_explored = false;
-      tile->is_visible = false;
+      tile->is_explored = true;   /* world geography is known */
+      tile->is_visible = false;    /* tactical visibility per unit */
       tile->owner_id[0] = '\0';
 
       tile->terrain = is_land ? CIV_TERRAIN_PLAIN : CIV_TERRAIN_COASTAL;

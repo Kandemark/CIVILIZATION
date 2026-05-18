@@ -1,11 +1,17 @@
 #include "../../include/core/game.h"
 #include "../../include/core/ai/ai_system.h"
+#include "../../include/core/character.h"
+#include "../../include/core/npc_engine.h"
 #include "../../include/core/culture/culture.h"
 #include "../../include/core/data/history_db.h"
 #include "../../include/core/diplomacy/relations.h"
 #include "../../include/core/military/combat.h"
 #include "../../include/core/profile.h"
+#include "../../include/core/time_engine.h"
 #include "../../include/core/world/map_view.h"
+#include "../../include/core/world/nation.h"
+#include "../../include/core/world/political_borders.h"
+#include "../../include/core/world/real_world_map.h"
 #include "../../include/core/technology/innovation_system.h"
 #include "../../include/utils/config.h"
 #include "../../include/utils/memory_pool.h"
@@ -78,21 +84,32 @@ civ_result_t civ_game_initialize(civ_game_t *game,
   // Initialize Event Manager
   game->event_manager = civ_event_manager_create();
 
-  // Initialize deterministic global atlas map
+  // Initialize world map — try Earth data first, fall back to procedural atlas
   uint32_t seed = CIV_GLOBAL_MAP_SEED;
   game->world_map =
       civ_map_create(CIV_DEFAULT_MAP_WIDTH, CIV_DEFAULT_MAP_HEIGHT, seed);
   if (game->world_map) {
-    civ_map_generate_terrain(game->world_map);
+    if (civ_earth_map_is_valid(CIV_EARTH_MAP_DEFAULT_PATH)) {
+      civ_result_t earth_res =
+          civ_earth_map_load(CIV_EARTH_MAP_DEFAULT_PATH, game->world_map);
+      if (earth_res.error == CIV_OK) {
+        printf("[GAME] Earth map loaded from %s\n",
+               CIV_EARTH_MAP_DEFAULT_PATH);
+      } else {
+        printf("[GAME] Earth map load failed: %s — using procedural atlas\n",
+               earth_res.message);
+        civ_map_generate_terrain(game->world_map);
+      }
+    } else {
+      printf("[GAME] No Earth map found — using procedural atlas\n");
+      civ_map_generate_terrain(game->world_map);
+    }
   }
 
   // Initialize Systems
   game->population_manager = civ_population_manager_create();
   game->market_economy = civ_market_dynamics_create();
   game->technology_tree = civ_innovation_system_create();
-  if (game->technology_tree) {
-    civ_innovation_system_populate_default_tree(game->technology_tree);
-  }
   game->military_system = civ_combat_system_create();
   game->unit_manager = civ_unit_manager_create();
   game->diplomacy_system = civ_diplomacy_system_create();
@@ -105,32 +122,52 @@ civ_result_t civ_game_initialize(civ_game_t *game,
   game->wonder_manager = civ_wonder_manager_create();
   game->government = civ_government_create("Initial Government");
 
-  /* Initialize Nations and Diplomacy */
-  const char *initial_nations[] = {"PLAYER", "RIVAL"};
-  civ_diplomacy_system_initialize_relations(game->diplomacy_system,
-                                            initial_nations, 2);
-
-  /* Spawn Rival Base */
-  civ_settlement_t rival_base;
-  memset(&rival_base, 0, sizeof(civ_settlement_t));
-  strcpy(rival_base.id, "rival_capital");
-  strcpy(rival_base.name, "Rival Kingdom");
-  rival_base.x = 30.0f;
-  rival_base.y = 30.0f;
-  rival_base.population = 800;
-  rival_base.attractiveness = 0.8f;
-  rival_base.tier = CIV_SETTLEMENT_HAMLET;
-  rival_base.culture_yield = 1.0f;
-  rival_base.accumulated_culture = 0.0f;
-  rival_base.territory_radius = 2;
-  civ_settlement_manager_add(game->settlement_manager, &rival_base);
-
-  /* Add Strategic AI for Rival */
-  civ_strategic_ai_t *rival_ai = civ_strategic_ai_create("RIVAL", "Rival King");
-  civ_ai_system_add_strategic(game->ai_system, rival_ai);
-
-  /* Initialize system orchestrator — systems register here for dependency-ordered updates */
+  /* Initialize system orchestrator */
   game->system_orchestrator = civ_system_orchestrator_create();
+
+  /* Load real political borders from Natural Earth data */
+  if (civ_political_borders_load("data/earth_borders.bin",
+                                  game->world_map->width,
+                                  game->world_map->height)) {
+    civ_political_borders_apply(game->world_map);
+  }
+
+  /* Initialize nations */
+  {
+    civ_nation_manager_t *nm = civ_nation_manager_create();
+    if (nm) {
+      civ_nation_manager_init_default(nm);
+      printf("[GAME] %d nations initialized\n", nm->count);
+      game->nation_manager = nm;
+    }
+  }
+
+  /* Initialize time engine — global baseline 00 BC, custom calendars */
+  {
+    civ_time_engine_t *te = civ_time_engine_create();
+    if (te) {
+      civ_time_engine_init_default_calendars(te);
+      game->time_engine = te;
+      printf("[GAME] Time engine initialized: Year %d, %d calendars\n",
+             te->global.global_year, te->calendar_count);
+    }
+  }
+
+  /* Initialize NPC engine */
+  {
+    civ_npc_engine_t *ne = civ_npc_engine_create();
+    if (ne) {
+      civ_npc_engine_add(ne, "Aleksandr Volkov", "President", "Russia");
+      civ_npc_engine_add(ne, "Maria Chen", "Trade Minister", "China");
+      civ_npc_engine_add(ne, "James Okafor", "Finance Director", "Nigeria");
+      civ_npc_engine_add(ne, "Isabel Rojas", "Foreign Secretary", "Brazil");
+      civ_npc_engine_add(ne, "Klaus Weber", "Chancellor", "Germany");
+      civ_npc_engine_add(ne, "Yuki Tanaka", "Defense Minister", "Japan");
+      civ_npc_engine_add(ne, "Amina Hassan", "Culture Minister", "Egypt");
+      civ_npc_engine_add(ne, "Raj Patel", "Prime Minister", "India");
+      game->npc_engine = ne;
+    }
+  }
 
   game->state = CIV_GAME_STATE_RUNNING;
   game->is_running = true;
@@ -147,6 +184,15 @@ civ_result_t civ_game_end_turn(civ_game_t *game) {
     return error_result(CIV_ERROR_INVALID_ARGUMENT, "Invalid game");
 
   game->current_turn++;
+  if (game->time_engine)
+    civ_time_engine_advance_turn((civ_time_engine_t *)game->time_engine);
+  /* NPC decisions */
+  if (game->npc_engine && game->time_engine) {
+    civ_time_engine_t *te = (civ_time_engine_t *)game->time_engine;
+    civ_npc_engine_process_turn((civ_npc_engine_t *)game->npc_engine,
+                                game->nation_manager,
+                                te->global.global_year, te->global.global_day);
+  }
   printf("[GAME] Advanced to turn %d\n", game->current_turn);
 
   // Reset unit movement
@@ -458,17 +504,33 @@ void civ_game_shutdown(civ_game_t *game) {
   // ... destroy others ...
 }
 
-#define CIV_SAVE_MAGIC 0x43495653 // "CIVS"
-#define CIV_SAVE_VERSION 1
+#define CIV_SAVE_MAGIC   0x43495653 /* "CIVS" */
+#define CIV_SAVE_VERSION 3
 
 typedef struct {
-  uint32_t magic;
-  uint32_t version;
+  /* v1 */
+  uint32_t          magic, version;
   civ_game_config_t config;
-  uint32_t map_width;
-  uint32_t map_height;
-  uint32_t map_seed;
-  float sea_level;
+  uint32_t          map_width, map_height, map_seed;
+  float             sea_level;
+  /* v2 */
+  uint32_t          turn;
+  uint64_t          timestamp;
+  char              faction_id[32];
+  char              profile_name[64];
+  char              save_label[64];
+  uint32_t          settlement_count;
+  int64_t           total_population;
+  /* v3 — time engine + character */
+  int32_t           global_year;
+  int32_t           global_day;
+  uint32_t          turn_number;
+  int32_t           char_bg;         /* character background */
+  float             char_wealth;
+  float             char_reputation;
+  float             char_influence;
+  int32_t           char_skills[10];
+  uint32_t          reserved[8];
 } civ_save_header_t;
 
 civ_result_t civ_game_save_state(civ_game_t *game, const char *filename) {
@@ -486,6 +548,38 @@ civ_result_t civ_game_save_state(civ_game_t *game, const char *filename) {
   header.map_height = game->world_map ? game->world_map->height : 0;
   header.map_seed = game->world_map ? game->world_map->seed : 0;
   header.sea_level = game->world_map ? game->world_map->sea_level : 0.0f;
+  /* v2 metadata */
+  header.turn = game->current_turn;
+  header.timestamp = (uint64_t)time(NULL);
+  snprintf(header.faction_id, sizeof(header.faction_id), "%s",
+           game->faction_id[0] ? game->faction_id : "none");
+  snprintf(header.profile_name, sizeof(header.profile_name), "%s",
+           game->current_profile ? game->current_profile->name : "unknown");
+  snprintf(header.save_label, sizeof(header.save_label), "Turn %d",
+           game->current_turn);
+  if (game->settlement_manager)
+    header.settlement_count = (uint32_t)game->settlement_manager->settlement_count;
+  if (game->settlement_manager) {
+    for (size_t i = 0; i < game->settlement_manager->settlement_count; i++)
+      header.total_population +=
+          game->settlement_manager->settlements[i].population;
+  }
+  /* v3: time engine state */
+  if (game->time_engine) {
+    civ_time_engine_t *te = (civ_time_engine_t *)game->time_engine;
+    header.global_year = te->global.global_year;
+    header.global_day = te->global.global_day;
+    header.turn_number = te->global.turn_number;
+  }
+  /* v3: player character */
+  if (game->player_character) {
+    civ_character_t *pc = (civ_character_t *)game->player_character;
+    header.char_bg = (int32_t)pc->background;
+    header.char_wealth = pc->personal_wealth;
+    header.char_reputation = pc->reputation;
+    header.char_influence = pc->political_influence;
+    memcpy(header.char_skills, pc->skills, sizeof(pc->skills));
+  }
 
   // 2. Serialize Map Data (Tiles)
   size_t map_size = 0;
@@ -565,6 +659,25 @@ civ_result_t civ_game_load_state(civ_game_t *game, const char *filename) {
       }
     }
   }
+
+  /* v3: Restore time engine */
+  if (header->version >= 3 && game->time_engine) {
+    civ_time_engine_t *te = (civ_time_engine_t *)game->time_engine;
+    te->global.global_year = header->global_year;
+    te->global.global_day = header->global_day;
+    te->global.turn_number = header->turn_number;
+  }
+  /* v3: Restore player character */
+  if (header->version >= 3 && game->player_character) {
+    civ_character_t *pc = (civ_character_t *)game->player_character;
+    pc->background = (civ_background_t)header->char_bg;
+    pc->personal_wealth = header->char_wealth;
+    pc->reputation = header->char_reputation;
+    pc->political_influence = header->char_influence;
+    memcpy(pc->skills, header->char_skills, sizeof(pc->skills));
+  }
+  /* Restore turn */
+  game->current_turn = header->turn;
 
   CIV_FREE(buffer);
   return (civ_result_t){CIV_OK, "Game loaded successfully"};

@@ -9,6 +9,7 @@
 #ifndef CIVILIZATION_COMMON_H
 #define CIVILIZATION_COMMON_H
 
+#define _USE_MATH_DEFINES
 #include <math.h>
 #include <stdbool.h>
 #include <stddef.h>

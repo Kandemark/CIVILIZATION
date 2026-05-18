@@ -1,4 +1,5 @@
 #include "../../include/ui/app_controller.h"
+#include "../../include/display/theme.h"
 #include "../../include/engine/font.h"
 #include "../../include/ui/scene.h"
 #include "../../include/ui/ui_common.h"
@@ -15,6 +16,9 @@ civ_result_t civ_app_controller_init(civ_app_controller_t *app, int argc,
     return (civ_result_t){CIV_ERROR_NULL_POINTER, "Null app controller"};
 
   memset(app, 0, sizeof(*app));
+
+  /* Initialize theme BEFORE any widgets or scenes use it */
+  civ_theme_init_default();
 
   if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS)) {
     return (civ_result_t){CIV_ERROR_INITIALIZATION_FAILED,
@@ -94,6 +98,11 @@ void civ_app_controller_run(civ_app_controller_t *app) {
 
     int win_w = 0, win_h = 0;
     civ_window_get_size(app->window, &win_w, &win_h);
+
+    /* Set window size in input state so scenes can use it during update */
+    app->input.win_w = win_w;
+    app->input.win_h = win_h;
+    app->input.global_dt = app->delta_time;
 
     civ_scene_manager_update(app->game, &app->input);
 

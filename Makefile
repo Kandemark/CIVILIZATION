@@ -4,7 +4,7 @@
 CC = gcc
 SDL3_CFLAGS = $(shell pkg-config --cflags sdl3 sdl3-ttf 2>/dev/null || echo "-I/usr/include/SDL3 -I/usr/include/SDL3_ttf")
 SDL3_LIBS = $(shell pkg-config --libs sdl3 sdl3-ttf 2>/dev/null || echo "-lSDL3 -lSDL3_ttf")
-CFLAGS = -std=c11 -Iinclude $(SDL3_CFLAGS) -Wall -Wno-unused-variable -Wno-unused-function
+CFLAGS = -std=c11 -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200809L -Iinclude $(SDL3_CFLAGS) -Wall -Wno-unused-variable -Wno-unused-function
 LDFLAGS =
 LIBS = $(SDL3_LIBS) -lm
 
@@ -26,10 +26,51 @@ ENGINE_SRCS = \
 	src/engine/input.c \
 	src/engine/font.c
 
+# Display engine sources
+DISPLAY_SRCS = \
+	src/display/layer.c \
+	src/display/camera.c \
+	src/display/theme.c \
+	src/display/animation.c \
+	src/display/draw_list.c \
+	src/display/debug_overlay.c
+
+# Widget library sources
+WIDGET_SRCS = \
+	src/ui/widget/widget_base.c \
+	src/ui/widget/button.c \
+	src/ui/widget/panel.c \
+	src/ui/widget/progress_bar.c \
+	src/ui/window_mgr.c \
+	src/ui/widget/drawer.c \
+	src/ui/widget/tooltip.c \
+	src/ui/widget/scroll_area.c
+
+# Layout engine sources
+LAYOUT_SRCS = \
+	src/ui/layout/layout.c
+
+# Graph rendering sources
+GRAPH_SRCS = \
+	src/ui/graph/graph.c
+
+# Icon system sources
+ICON_SRCS = \
+	src/ui/icon/icon_atlas.c
+
+# Panel sources
+PANEL_SRCS = \
+	src/ui/panel/diplomacy_panel.c \
+	src/ui/panel/research_panel.c \
+	src/ui/panel/governance_panel.c \
+	src/ui/panel/wonders_panel.c \
+	src/ui/panel/rulebook_panel.c \
+	src/ui/panel/unit_sidebar.c \
+	src/ui/panel/settlement_sidebar.c
+
 # UI sources
 UI_SRCS = \
 	src/ui/sdl3_main.c \
-	src/ui/button.c \
 	src/ui/ui_common.c \
 	src/ui/app_controller.c \
 	src/ui/scene_manager.c \
@@ -38,7 +79,8 @@ UI_SRCS = \
 	src/ui/scenes/scene_profile_create.c \
 	src/ui/scenes/scene_main_menu.c \
 	src/ui/scenes/scene_setup.c \
-	src/ui/scenes/scene_spawn_select.c \
+	src/ui/scenes/scene_life_origin.c \
+	src/ui/scenes/scene_identity.c \
 	src/ui/scenes/scene_game.c
 
 # Core game sources - ALL SYSTEMS
@@ -71,10 +113,13 @@ CORE_SRCS = \
 	src/core/events/game_events.c \
 	src/core/world/dynamic_borders.c \
 	src/core/world/map_generator.c \
+	src/core/world/real_world_map.c \
 	src/core/world/map_view.c \
 	src/core/world/territory.c \
 	src/core/world/settlement_manager.c \
 	src/core/world/wonders.c \
+	src/core/world/nation.c \
+	src/core/world/political_borders.c \
 	src/core/governance/government.c \
 	src/core/governance/custom_governance.c \
 	src/core/governance/interaction.c \
@@ -108,6 +153,10 @@ CORE_SRCS = \
 	src/core/politics/politics.c \
 	src/core/politics/political_rivalry.c \
 	src/core/subunits/subunit.c \
+	src/core/faction.c \
+	src/core/character.c \
+	src/core/npc_engine.c \
+	src/core/time_engine.c \
 	src/core/knowledge_system.c
 
 # Utils sources
@@ -124,7 +173,7 @@ VISUAL_SRCS = \
 	src/core/visuals/vexillology.c
 
 # All sources
-SRCS = $(ENGINE_SRCS) $(UI_SRCS) $(CORE_SRCS) $(UTILS_SRCS) $(VISUAL_SRCS)
+SRCS = $(ENGINE_SRCS) $(DISPLAY_SRCS) $(UI_SRCS) $(WIDGET_SRCS) $(LAYOUT_SRCS) $(GRAPH_SRCS) $(ICON_SRCS) $(PANEL_SRCS) $(CORE_SRCS) $(UTILS_SRCS) $(VISUAL_SRCS)
 
 # Object files
 OBJS = $(patsubst src/%.c,$(OBJ_DIR)/%.o,$(SRCS))

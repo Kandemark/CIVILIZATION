@@ -16,7 +16,7 @@ static void init(void) {
      it or share it. To keep it clean, let's load our own reference or rely on a
      font manager. For this refactor, we'll load a local handle. */
   int win_h = 1000; /* Default, will be updated in render */
-  font_title = civ_font_load_system("Segoe UI", 80);
+  font_title = civ_font_load_system("Segoe UI", 48);
   splash_timer = 0.0f;
   splash_alpha = 0.0f;
 }
@@ -54,7 +54,7 @@ static void render(SDL_Renderer *renderer, int win_w, int win_h,
        SDL_SetRenderDrawColor alpha Wait, civ_font_render uses SDL_ttf which
        often manages its own color.
     */
-    civ_font_render_aligned(renderer, font_title, "CIVILIZATION", 0, -20, win_w,
+    civ_font_render_aligned(renderer, font_title, "DOMINION", 0, -20, win_w,
                             win_h, CIV_COLOR_ACCENT, CIV_ALIGN_CENTER,
                             CIV_VALIGN_MIDDLE);
   }

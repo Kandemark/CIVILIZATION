@@ -23,10 +23,19 @@ set(ENGINE_SOURCES
     src/engine/font.c
 )
 
+# Display engine sources
+set(DISPLAY_SOURCES
+    src/display/layer.c
+    src/display/camera.c
+    src/display/theme.c
+    src/display/animation.c
+    src/display/draw_list.c
+    src/display/debug_overlay.c
+)
+
 # UI sources
 set(UI_SOURCES
     src/ui/sdl3_main.c
-    src/ui/button.c
     src/ui/ui_common.c
     src/ui/app_controller.c
     src/ui/scene_manager.c
@@ -35,8 +44,47 @@ set(UI_SOURCES
     src/ui/scenes/scene_profile_create.c
     src/ui/scenes/scene_main_menu.c
     src/ui/scenes/scene_setup.c
+    src/ui/scenes/scene_life_origin.c
     src/ui/scenes/scene_spawn_select.c
     src/ui/scenes/scene_game.c
+)
+
+# Widget library sources
+set(WIDGET_SOURCES
+    src/ui/widget/widget_base.c
+    src/ui/widget/button.c
+    src/ui/widget/panel.c
+    src/ui/widget/progress_bar.c
+    src/ui/window_mgr.c
+    src/ui/widget/drawer.c
+    src/ui/widget/tooltip.c
+    src/ui/widget/scroll_area.c
+)
+
+# Layout engine sources
+set(LAYOUT_SOURCES
+    src/ui/layout/layout.c
+)
+
+# Graph rendering sources
+set(GRAPH_SOURCES
+    src/ui/graph/graph.c
+)
+
+# Icon system sources
+set(ICON_SOURCES
+    src/ui/icon/icon_atlas.c
+)
+
+# Panel sources
+set(PANEL_SOURCES
+    src/ui/panel/diplomacy_panel.c
+    src/ui/panel/research_panel.c
+    src/ui/panel/governance_panel.c
+    src/ui/panel/wonders_panel.c
+    src/ui/panel/rulebook_panel.c
+    src/ui/panel/unit_sidebar.c
+    src/ui/panel/settlement_sidebar.c
 )
 
 # Core game sources
@@ -75,9 +123,11 @@ set(CORE_SOURCES
     src/core/culture/language_evolution.c
     src/core/culture/culture.c
     src/core/world/map_generator.c
+    src/core/world/real_world_map.c
     src/core/world/map_view.c
     src/core/world/territory.c
     src/core/world/wonders.c
+    src/core/world/nation.c
     src/core/visualization/cultural_display.c
     src/core/ai/base_ai.c
     src/core/ai/strategic_ai.c
@@ -107,6 +157,9 @@ set(CORE_SOURCES
     src/core/politics/political_rivalry.c
     src/core/governance/rule_system.c
     src/core/governance/governance_evolution.c
+    src/core/faction.c
+    src/core/character.c
+    src/core/time_engine.c
     src/core/knowledge_system.c
 )
 
@@ -124,7 +177,13 @@ set(UTILS_SOURCES
 # Create main executable
 add_executable(dominion
     ${ENGINE_SOURCES}
+    ${DISPLAY_SOURCES}
     ${UI_SOURCES}
+    ${WIDGET_SOURCES}
+    ${LAYOUT_SOURCES}
+    ${GRAPH_SOURCES}
+    ${ICON_SOURCES}
+    ${PANEL_SOURCES}
     ${CORE_SOURCES}
     ${UTILS_SOURCES}
 )

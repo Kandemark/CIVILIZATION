@@ -1,208 +1,99 @@
 /**
  * @file innovation_system.c
- * @brief Implementation of innovation system
+ * @brief Continuous technology indices — no discovery caps, infinite advancement
  */
-
 #include "../../../include/core/technology/innovation_system.h"
 #include "../../../include/common.h"
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
+static const char *s_domain_names[CIV_TECH_DOMAIN_COUNT] = {
+    "Writing & Recordkeeping",   "Engineering & Construction",
+    "Agriculture & Husbandry",   "Military Science",
+    "Medicine & Healing",        "Astronomy & Mathematics",
+    "Metallurgy & Materials",    "Navigation & Cartography",
+    "Architecture & Planning",   "Philosophy & Ethics",
+    "Commerce & Currency",       "Governance Theory",
+};
 
 civ_innovation_system_t *civ_innovation_system_create(void) {
-  civ_innovation_system_t *is =
-      (civ_innovation_system_t *)CIV_MALLOC(sizeof(civ_innovation_system_t));
-  if (!is) {
-    civ_log(CIV_LOG_ERROR, "Failed to allocate innovation system");
-    return NULL;
-  }
+  civ_innovation_system_t *is = (civ_innovation_system_t *)CIV_MALLOC(
+      sizeof(civ_innovation_system_t));
+  if (!is) return NULL;
+  memset(is, 0, sizeof(*is));
 
-  civ_innovation_system_init(is);
+  for (int i = 0; i < CIV_TECH_DOMAIN_COUNT; i++) {
+    strncpy(is->domains[i].name, s_domain_names[i],
+            sizeof(is->domains[i].name) - 1);
+    is->domains[i].index = 0;
+    is->allocation[i] = 1.0f / (float)CIV_TECH_DOMAIN_COUNT;
+  }
   return is;
 }
 
 void civ_innovation_system_destroy(civ_innovation_system_t *is) {
-  if (!is)
-    return;
-
-  if (is->technologies) {
-    for (size_t i = 0; i < is->tech_count; i++) {
-      CIV_FREE(is->technologies[i].prerequisites);
-    }
-    CIV_FREE(is->technologies);
-  }
-
-  CIV_FREE(is->researched_techs);
-  CIV_FREE(is->current_research);
   CIV_FREE(is);
 }
 
-void civ_innovation_system_init(civ_innovation_system_t *is) {
-  if (!is)
-    return;
-
-  memset(is, 0, sizeof(civ_innovation_system_t));
-
-  is->tech_level = 0.0f; /* Start at 0, no predefined minimum */
-  is->research_budget = 100.0f;
-  is->tech_capacity = 50;
-  is->technologies = (civ_technology_node_t *)CIV_CALLOC(
-      is->tech_capacity, sizeof(civ_technology_node_t));
-  is->researched_capacity = 50;
-  is->researched_techs =
-      (civ_id_t *)CIV_CALLOC(is->researched_capacity, sizeof(civ_id_t));
-}
-
-void civ_innovation_system_update(civ_innovation_system_t *is,
-                                  civ_float_t time_delta) {
-  if (!is || !is->current_research)
-    return;
-
-  /* Find current research technology */
-  civ_technology_node_t *current_tech = NULL;
-  for (size_t i = 0; i < is->tech_count; i++) {
-    if (strcmp(is->technologies[i].id, is->current_research) == 0) {
-      current_tech = &is->technologies[i];
-      break;
-    }
-  }
-
-  if (!current_tech || current_tech->researched)
-    return;
-
-  /* Calculate research progress */
-  civ_float_t research_rate = is->research_budget * 0.1f * time_delta;
-  current_tech->progress += research_rate;
-
-  /* Check if research is complete */
-  if (current_tech->progress >= current_tech->base_research_cost) {
-    current_tech->researched = true;
-    current_tech->progress = current_tech->base_research_cost;
-
-    /* Add to researched list */
-    if (is->researched_count < is->researched_capacity) {
-      /* Convert tech_id to civ_id_t (simplified) */
-      is->researched_techs[is->researched_count++] =
-          (civ_id_t)is->researched_count;
-    }
-
-    /* Update tech level */
-    is->tech_level += 0.1f;
-
-    /* Clear current research */
-    CIV_FREE(is->current_research);
-    is->current_research = NULL;
-
-    civ_log(CIV_LOG_INFO, "Technology researched: %s", current_tech->name);
-  }
-}
-
-civ_result_t civ_innovation_system_research_tech(civ_innovation_system_t *is,
-                                                 const char *tech_id) {
-  civ_result_t result = {CIV_OK, NULL};
-
-  if (!is || !tech_id) {
-    result.error = CIV_ERROR_NULL_POINTER;
-    return result;
-  }
-
-  /* Find technology */
-  civ_technology_node_t *tech = NULL;
-  for (size_t i = 0; i < is->tech_count; i++) {
-    if (strcmp(is->technologies[i].id, tech_id) == 0) {
-      tech = &is->technologies[i];
-      break;
-    }
-  }
-
-  if (!tech) {
-    result.error = CIV_ERROR_NOT_FOUND;
-    result.message = "Technology not found";
-    return result;
-  }
-
-  if (tech->researched) {
-    result.error = CIV_ERROR_INVALID_STATE;
-    result.message = "Technology already researched";
-    return result;
-  }
-
-  /* Check prerequisites */
-  for (size_t i = 0; i < tech->prerequisite_count; i++) {
-    bool found = false;
-    for (size_t j = 0; j < is->researched_count; j++) {
-      if (tech->prerequisites[i] == is->researched_techs[j]) {
-        found = true;
-        break;
-      }
-    }
-    if (!found) {
-      result.error = CIV_ERROR_INVALID_STATE;
-      result.message = "Prerequisites not met";
-      return result;
-    }
-  }
-
-  /* Set as current research */
-  if (is->current_research) {
-    CIV_FREE(is->current_research);
-  }
-  is->current_research = (char *)CIV_MALLOC(strlen(tech_id) + 1);
-  if (is->current_research) {
-    strcpy(is->current_research, tech_id);
-  }
-
-  return result;
-}
-
-civ_float_t
-civ_innovation_system_get_tech_level(const civ_innovation_system_t *is) {
-  if (!is)
-    return 0.0f;
-  return is->tech_level;
+void civ_innovation_system_init_domains(civ_innovation_system_t *is,
+                                        int32_t starting_indices[12]) {
+  if (!is || !starting_indices) return;
+  for (int i = 0; i < CIV_TECH_DOMAIN_COUNT; i++)
+    is->domains[i].index = starting_indices[i];
 }
 
 void civ_innovation_system_set_research_budget(civ_innovation_system_t *is,
-                                               civ_float_t budget) {
-  if (!is)
-    return;
-  is->research_budget = MAX(0.0f, budget);
+                                               float budget) {
+  if (!is) return;
+  is->total_budget = budget > 0.0f ? budget : 0.0f;
 }
 
-void civ_innovation_system_populate_default_tree(civ_innovation_system_t *is) {
-  if (!is || !is->technologies)
-    return;
+void civ_innovation_system_set_allocation(civ_innovation_system_t *is,
+                                          civ_tech_domain_t domain,
+                                          float fraction) {
+  if (!is || domain >= CIV_TECH_DOMAIN_COUNT) return;
+  if (fraction < 0.0f) fraction = 0.0f;
+  if (fraction > 1.0f) fraction = 1.0f;
+  is->allocation[domain] = fraction;
+}
 
-  struct tech_def {
-    const char *id;
-    const char *name;
-    const char *desc;
-    float cost;
-  } defs[] = {{"agriculture", "Agriculture",
-               "Cultivation of land and raising crops.", 20.0f},
-              {"pottery", "Pottery", "Vessels made of baked clay.", 40.0f},
-              {"mining", "Mining",
-               "Extracting valuable minerals from the earth.", 40.0f},
-              {"archery", "Archery",
-               "Skill or practice of using a bow and arrow.", 60.0f},
-              {"animal_husbandry", "Animal Husbandry",
-               "Breeding and caring for farm animals.", 50.0f}};
+int32_t civ_innovation_system_get_index(civ_innovation_system_t *is,
+                                        civ_tech_domain_t domain) {
+  if (!is || domain >= CIV_TECH_DOMAIN_COUNT) return 0;
+  return is->domains[domain].index;
+}
 
-  for (int i = 0; i < 5; i++) {
-    civ_technology_node_t *t = &is->technologies[is->tech_count++];
-    strncpy(t->id, defs[i].id, STRING_SHORT_LEN - 1);
-    strncpy(t->name, defs[i].name, STRING_MEDIUM_LEN - 1);
-    strncpy(t->description, defs[i].desc, STRING_MAX_LEN - 1);
-    t->base_research_cost = defs[i].cost;
-    t->progress = 0.0f;
-    t->researched = false;
-    t->prerequisite_count = 0;
-    t->prerequisites = NULL;
+const char *civ_tech_domain_name(civ_tech_domain_t domain) {
+  if (domain >= CIV_TECH_DOMAIN_COUNT) return "Unknown";
+  return s_domain_names[domain];
+}
+
+void civ_innovation_system_update(civ_innovation_system_t *is, float dt) {
+  if (!is) return;
+
+  for (int i = 0; i < CIV_TECH_DOMAIN_COUNT; i++) {
+    float budget_share = is->total_budget * is->allocation[i];
+    /* Diminishing returns: harder to advance at higher levels */
+    float diminishing = 1.0f / (1.0f + fabsf((float)is->domains[i].index) / 500.0f);
+    float growth = budget_share * diminishing * 0.1f * dt;
+    is->domains[i].growth_rate = growth;
+    is->domains[i].index += (int32_t)growth;
   }
 
-  /* Set prerequisites (Pottery and Archery require Agriculture) */
-  /* Note: Prerequisites are civ_id_t, which is currently simplified.
-     In a full system we'd map IDs properly. For this phase, we'll keep it
-     simple. */
+  /* Aggregate index: weighted average across all domains */
+  float weighted_sum = 0.0f, total_weight = 0.0f;
+  for (int i = 0; i < CIV_TECH_DOMAIN_COUNT; i++) {
+    weighted_sum += (float)is->domains[i].index * is->allocation[i];
+    total_weight += is->allocation[i];
+  }
+  is->aggregate_index =
+      (int32_t)(weighted_sum / (total_weight > 0.0f ? total_weight : 1.0f));
+
+  /* Rankings — placeholder, real ranking compares against AI nations */
+  is->aggregate_rank = 1;
+  for (int i = 0; i < CIV_TECH_DOMAIN_COUNT; i++) {
+    is->domains[i].global_average = 200;
+    is->domains[i].global_rank = 1;
+  }
 }

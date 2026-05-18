@@ -1,133 +1,142 @@
+/**
+ * @file scene_setup.c
+ * @brief World generation confirmation — map is already loaded, just preview
+ *
+ * The Earth map (or procedural atlas) was loaded during civ_game_initialize().
+ * This scene shows a brief preview and lets the player confirm before proceeding.
+ */
 #include "../../../include/core/world/map_generator.h"
+#include "../../../include/display/camera.h"
 #include "../../../include/engine/font.h"
 #include "../../../include/engine/renderer.h"
-#include "../../../include/engine/window.h"
-#include "../../../include/ui/button.h"
 #include "../../../include/ui/scene.h"
 #include "../../../include/ui/ui_common.h"
 #include <SDL3/SDL.h>
+#include <math.h>
+#include <stdio.h>
 
-/* Local state */
-static civ_font_t *font_body = NULL;
-static civ_font_t *font_button = NULL;
-static bool is_generating = false;
-static bool gen_finished = false;
-extern float g_gen_progress; /* from map_generator.c */
-
-static int map_gen_thread(void *data) {
-  civ_game_t *game = (civ_game_t *)data;
-  printf("Map generation thread started...\n");
-  if (game && game->world_map) {
-    civ_map_genesis(game->world_map);
-  }
-  g_gen_progress = 1.0f;
-  printf("Map generation thread finished.\n");
-  gen_finished = true;
-  return 0;
-}
+static civ_font_t                *font_title = NULL;
+static civ_font_t                *font_body = NULL;
+static civ_render_map_context_t  *map_ctx = NULL;
+static civ_camera_t               cam;
+static int                        last_win_w, last_win_h;
+static float                      view_timer = 0.0f;
 
 static void init(void) {
-  font_body = civ_font_load_system("Segoe UI", 24);
-  font_button = civ_font_load_system("Segoe UI", 20);
-  is_generating = false;
-  gen_finished = false;
-  g_gen_progress = 0.0f;
+  font_title = civ_font_load_system("Segoe UI", 36);
+  font_body  = civ_font_load_system("Segoe UI", 22);
+  view_timer = 0.0f;
+  map_ctx = NULL;
+  printf("[SETUP] World preview ready.\n");
 }
 
 static void update(civ_game_t *game, civ_input_state_t *input) {
-  if (!is_generating && g_gen_progress < 0.1f) {
-    is_generating = true;
-    gen_finished = false;
-    SDL_CreateThread(map_gen_thread, "MapGenThread", game);
+  view_timer += 0.016f;
+
+  /* Camera init */
+  if (cam.map_width == 0 && game->world_map) {
+    civ_camera_init(&cam, game->world_map->width, game->world_map->height);
+  }
+  civ_camera_update(&cam, 0.016f);
+
+  /* Slow auto-pan */
+  cam.target_x = cam.x + sinf(view_timer * 0.3f) * 0.02f;
+
+  /* Manual pan */
+  if (input->mouse_right_down) {
+    float ms = 1.0f / (cam.zoom * 4.0f);
+    cam.target_x -= (float)input->delta_x * ms;
+    cam.target_y -= (float)input->delta_y * ms;
   }
 
-  if (gen_finished || g_gen_progress >= 1.0f) {
-    if (input->mouse_left_pressed || input->enter_pressed) {
-      printf("Proceeding to spawn selection.\n");
-      civ_scene_manager_switch(SCENE_SPAWN_SELECT);
-    }
+  /* Zoom */
+  if (fabsf(input->scroll_delta) > 0.1f) {
+    float factor = input->scroll_delta > 0 ? 1.15f : 1.0f / 1.15f;
+    civ_camera_zoom(&cam, factor, cam.x, cam.y);
+  }
+
+  /* Confirm: click or enter */
+  if (input->mouse_left_pressed || input->enter_pressed) {
+    printf("[SETUP] Confirmed. Proceeding to life origin.\n");
+    civ_scene_manager_switch(SCENE_LIFE_ORIGIN);
+  }
+
+  if (input->esc_pressed) {
+    civ_scene_manager_switch(SCENE_MAIN_MENU);
   }
 }
 
-static void render(SDL_Renderer *renderer, int win_w, int win_h,
-                   civ_game_t *game, civ_input_state_t *input) {
-  /* 1. Atmospheric Background */
-  civ_render_rect_filled(renderer, 0, 0, win_w, win_h, CIV_COLOR_BG_DARK);
+static void render(SDL_Renderer *r, int win_w, int win_h, civ_game_t *game,
+                   civ_input_state_t *input) {
+  (void)input;
+  last_win_w = win_w; last_win_h = win_h;
 
-  /* Background activity pulse (simulated) */
-  float pulse = (sinf(SDL_GetTicks() * 0.002f) * 0.5f + 0.5f);
-  civ_render_rect_filled_alpha(renderer, 0, win_h - 200, win_w, 200,
-                               CIV_COLOR_GLOW, (uint8_t)(pulse * 30));
-
-  /* 2. Center Status Card */
-  int card_w = 600;
-  int card_h = 240;
-  int card_x = (win_w - card_w) / 2;
-  int card_y = (win_h - card_h) / 2;
-
-  civ_render_rect_filled_alpha(renderer, card_x, card_y, card_w, card_h,
-                               CIV_COLOR_BG_MEDIUM, 160);
-  civ_render_rect_outline(renderer, card_x, card_y, card_w, card_h, 0x1A2A3A,
-                          1);
-
-  /* 3. Status Text */
-  const char *status = (g_gen_progress < 0.99f)
-                           ? "CONSTRUCTING PLANETARY GEOGRAPHY"
-                           : "REALITY STABILIZED";
-  if (font_body) {
-    civ_font_render_aligned(renderer, font_body, status, card_x, card_y + 60,
-                            card_w, 40, CIV_COLOR_PRIMARY, CIV_ALIGN_CENTER,
-                            CIV_VALIGN_TOP);
-
-    char percent_buf[16];
-    snprintf(percent_buf, sizeof(percent_buf), "%d%%",
-             (int)(g_gen_progress * 100));
-    civ_font_render_aligned(renderer, font_body, percent_buf, card_x,
-                            card_y + 100, card_w, 30, CIV_COLOR_TEXT_DIM,
-                            CIV_ALIGN_CENTER, CIV_VALIGN_TOP);
+  if (!game->world_map) {
+    civ_render_rect_filled(r, 0, 0, win_w, win_h, CIV_COLOR_BG_DARK);
+    if (font_title)
+      civ_font_render_aligned(r, font_title, "LOADING WORLD DATA...", 0, 0,
+                              win_w, win_h, CIV_COLOR_PRIMARY, CIV_ALIGN_CENTER,
+                              CIV_VALIGN_MIDDLE);
+    return;
   }
 
-  /* 4. Progress Bar */
-  int pw = 400;
-  int ph = 8;
-  int px = card_x + (card_w - pw) / 2;
-  int py = card_y + 150;
-
-  civ_render_rect_filled(renderer, px, py, pw, ph, 0x0A0F1E);
-  civ_render_rect_filled(renderer, px, py, (int)(pw * g_gen_progress), ph,
-                         CIV_COLOR_ACCENT);
-
-  /* Glow bar */
-  if (g_gen_progress > 0.01f) {
-    civ_render_rect_filled_alpha(renderer, px, py - 2,
-                                 (int)(pw * g_gen_progress), ph + 4,
-                                 CIV_COLOR_ACCENT, 40);
-  }
-
-  /* 5. Completion Prompt */
-  if (gen_finished || g_gen_progress >= 0.999f) {
-    if (font_body) {
-      uint8_t alpha =
-          (uint8_t)((sinf(SDL_GetTicks() * 0.005f) * 0.5f + 0.5f) * 255);
-      SDL_SetRenderDrawColor(renderer, 255, 255, 255, alpha);
-      civ_font_render_aligned(renderer, font_body, "PRESS TO INITIATE DESCENT",
-                              0, py + 50, win_w, 40, CIV_COLOR_TEXT,
-                              CIV_ALIGN_CENTER, CIV_VALIGN_MIDDLE);
+  /* Map context */
+  if (!map_ctx) {
+    map_ctx = civ_render_map_context_create(r, win_w, win_h,
+                                            game->world_map->width,
+                                            game->world_map->height);
+    if (map_ctx) {
+      map_ctx->view_x = cam.x; map_ctx->view_y = cam.y;
+      map_ctx->zoom = cam.zoom;
     }
+  }
+  if (map_ctx) {
+    map_ctx->view_x = cam.x; map_ctx->view_y = cam.y;
+    map_ctx->zoom = cam.zoom;
+    civ_render_map(r, map_ctx, game->world_map, win_w, win_h);
+  }
+
+  /* Bottom panel */
+  int panel_h = 130;
+  civ_render_rect_filled_alpha(r, 0, win_h - panel_h, win_w, panel_h,
+                               CIV_COLOR_BG_MEDIUM, 220);
+  civ_render_line(r, 0, win_h - panel_h, win_w, win_h - panel_h, 0x1A2A3A);
+
+  /* Top bar */
+  civ_render_rect_filled_alpha(r, 0, 0, win_w, 40, 0x050A14, 220);
+  civ_render_line(r, 0, 40, win_w, 40, 0x1A2A3A);
+
+  if (font_title) {
+    float lat = 90.0f - (cam.y / (float)cam.map_height) * 180.0f;
+    float lon = (cam.x / (float)cam.map_width) * 360.0f - 180.0f;
+    while (lon < -180.0f) lon += 360.0f; while (lon > 180.0f) lon -= 360.0f;
+
+    char buf[128];
+    sprintf(buf, "PLANETARY SURVEY: %.2f%c | %.2f%c",
+            fabsf(lat), lat >= 0 ? 'N' : 'S', fabsf(lon), lon >= 0 ? 'E' : 'W');
+    civ_font_render_aligned(r, font_title, buf, 20, 0, win_w - 40, 40,
+                            CIV_COLOR_PRIMARY, CIV_ALIGN_LEFT, CIV_VALIGN_MIDDLE);
+
+    /* Instructions */
+    float pulse = (sinf((float)SDL_GetTicks() * 0.004f) * 0.5f + 0.5f);
+    uint32_t prompt_c = pulse > 0.6f ? CIV_COLOR_PRIMARY : CIV_COLOR_TEXT;
+    civ_font_render_aligned(r, font_title, "CONFIRM TERRESTRIAL INSERTION",
+                            0, win_h - panel_h + 30, win_w, 40,
+                            prompt_c, CIV_ALIGN_CENTER, CIV_VALIGN_MIDDLE);
+    if (font_body)
+      civ_font_render_aligned(r, font_body,
+                              "(CLICK OR PRESS ENTER TO CONFIRM · ESC TO RETURN)",
+                              0, win_h - panel_h + 75, win_w, 30,
+                              CIV_COLOR_TEXT_DIM, CIV_ALIGN_CENTER,
+                              CIV_VALIGN_MIDDLE);
   }
 }
 
 static void destroy(void) {
-  if (font_body)
-    civ_font_destroy(font_body);
-  if (font_button)
-    civ_font_destroy(font_button);
-  font_body = NULL;
-  font_button = NULL;
+  if (font_title) civ_font_destroy(font_title), font_title = NULL;
+  if (font_body)  civ_font_destroy(font_body),  font_body = NULL;
+  if (map_ctx)    civ_render_map_context_destroy(map_ctx), map_ctx = NULL;
 }
 
-civ_scene_t scene_setup = {.init = init,
-                           .update = update,
-                           .render = render,
-                           .destroy = destroy,
-                           .next_scene_id = -1};
+civ_scene_t scene_setup = {.init = init, .update = update, .render = render,
+                           .destroy = destroy, .next_scene_id = -1};

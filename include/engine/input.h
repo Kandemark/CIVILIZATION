@@ -50,6 +50,12 @@ typedef struct {
   bool backspace_pressed; /**< True if backspace was pressed this frame */
   bool enter_pressed;     /**< True if enter was pressed this frame */
   bool esc_pressed;       /**< True if escape was pressed this frame */
+
+  /* Window dimensions (set by app controller before update) */
+  int win_w, win_h;
+
+  /* Frame delta time in seconds (set by app controller before update) */
+  float global_dt;
 } civ_input_state_t;
 
 /**

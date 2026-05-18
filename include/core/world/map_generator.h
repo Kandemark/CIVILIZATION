@@ -75,8 +75,8 @@ typedef struct {
   bool is_visible;  /**< True if player currently has line-of-sight */
 
   /* Territory Ownership */
-  char owner_id[STRING_SHORT_LEN]; /**< ID of the nation/settlement that owns
-                                      this tile */
+  char     owner_id[STRING_SHORT_LEN];
+  uint32_t political_color;  /**< country color for political map, 0 = unclaimed */
 } civ_map_tile_t;
 
 /**

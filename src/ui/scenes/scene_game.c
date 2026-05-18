@@ -1,612 +1,519 @@
+#include "../../../include/core/character.h"
+#include "../../../include/core/profile.h"
 #include "../../../include/core/military/combat.h"
+#include "../../../include/core/time_engine.h"
+#include "../../../include/core/world/nation.h"
+#include "../../../include/core/world/political_borders.h"
 #include "../../../include/core/world/map_view.h"
+#include "../../../include/core/world/wonders.h"
+#include "../../../include/display/camera.h"
+#include "../../../include/display/debug_overlay.h"
+#include "../../../include/display/layer.h"
+#include "../../../include/display/theme.h"
+#include "../../../include/ui/graph/graph.h"
 #include "../../../include/engine/font.h"
 #include "../../../include/engine/renderer.h"
+#include "../../../include/ui/panel/diplomacy_panel.h"
+#include "../../../include/ui/panel/governance_panel.h"
+#include "../../../include/ui/panel/research_panel.h"
+#include "../../../include/ui/panel/rulebook_panel.h"
+#include "../../../include/ui/panel/settlement_sidebar.h"
+#include "../../../include/ui/panel/unit_sidebar.h"
+#include "../../../include/ui/panel/wonders_panel.h"
 #include "../../../include/ui/scene.h"
 #include "../../../include/ui/ui_common.h"
 #include <SDL3/SDL.h>
+#include <math.h>
 #include <stdio.h>
+#include <string.h>
 
-/* Local state */
-static civ_render_map_context_t *map_ctx = NULL;
-static civ_font_t *font_hud = NULL;
-static int last_win_h = 0;
-static int last_win_w = 0;
-static int32_t hover_tile_x = -1;
-static int32_t hover_tile_y = -1;
-static civ_unit_t *selected_unit = NULL;
-static civ_settlement_t *selected_settlement = NULL;
-static bool show_diplomacy = false;
-static bool show_research = false;
-static bool show_government = false;
-static bool show_wonders = false;
-static bool show_rulebook = false;
-static bool has_contacted_rival = false;
+/* ── Local state ──────────────────────────────────────────────────── */
+static civ_camera_t               cam;
+static civ_debug_overlay_t        debug;
+static civ_render_map_context_t  *map_ctx = NULL;
+static civ_font_t                *font_hud = NULL;
+static int                        last_win_w, last_win_h;
+static civ_unit_t             *selected_unit = NULL;
+static civ_settlement_t       *selected_settlement = NULL;
+static bool                    show_diplomacy, show_research;
+static bool                    show_government, show_wonders, show_rulebook;
+static bool                    has_contacted_rival;
+static float                    time_accumulator = 0.0f;
+static int                      time_speed = 1;
+static float                    days_per_second = 1.0f;
 
+/* Screen navigation */
+typedef enum { SCR_MAP, SCR_DIPLOMACY, SCR_ECONOMY, SCR_MILITARY,
+               SCR_TECHNOLOGY, SCR_GOVERNANCE, SCR_CULTURE,
+               SCR_NEWS } civ_screen_t;
+#include "../../../include/core/npc_engine.h"
+static civ_screen_t             current_screen = SCR_MAP;
+static char                     selected_nation_id[64] = "";
+static int16_t                  selected_nation_cid = -1;
+static char                     hovered_country[128] = "";
+static float                    hover_country_x, hover_country_y;
+
+/* ── Visibility helper ────────────────────────────────────────────── */
 static void update_visibility(civ_game_t *game) {
-  if (!game || !game->world_map || !game->unit_manager)
-    return;
-
-  /* Reset visible flag */
-  for (int32_t i = 0; i < game->world_map->width * game->world_map->height;
-       i++) {
+  if (!game || !game->world_map || !game->unit_manager) return;
+  for (int32_t i = 0; i < game->world_map->width * game->world_map->height; i++)
     game->world_map->tiles[i].is_visible = false;
-  }
-
-  /* Set visible based on units */
   for (size_t i = 0; i < game->unit_manager->unit_count; i++) {
     civ_unit_t *u = &game->unit_manager->units[i];
     int32_t r = u->visibility_range;
-
     for (int32_t dy = -r; dy <= r; dy++) {
       for (int32_t dx = -r; dx <= r; dx++) {
-        if (dx * dx + dy * dy <= r * r) {
-          int32_t tx = u->x + dx;
-          int32_t ty = u->y + dy;
-
-          /* Handle map wrapping for visibility */
-          tx = (tx + game->world_map->width) % game->world_map->width;
-
-          if (ty >= 0 && ty < game->world_map->height) {
-            civ_map_tile_t *tile = civ_map_get_tile(game->world_map, tx, ty);
-            if (tile) {
-              tile->is_visible = true;
-              tile->is_explored = true;
-            }
-          }
+        if (dx * dx + dy * dy > r * r) continue;
+        int32_t tx = (u->x + dx + game->world_map->width) % game->world_map->width;
+        int32_t ty = u->y + dy;
+        if (ty >= 0 && ty < game->world_map->height) {
+          civ_map_tile_t *t = civ_map_get_tile(game->world_map, tx, ty);
+          if (t) t->is_visible = true, t->is_explored = true;
         }
       }
     }
   }
 }
 
-static void render_wonders_panel(SDL_Renderer *renderer,
-                                 civ_wonder_manager_t *manager) {
-  if (!manager)
-    return;
+/* ── Rendering helpers ─────────────────────────────────────────────── */
+static void render_map_layer(SDL_Renderer *r, civ_game_t *game) {
+  if (!game->world_map) return;
+  civ_render_map(r, map_ctx, game->world_map, last_win_w, last_win_h);
+}
 
-  int win_w = last_win_w;
-  int win_h = last_win_h;
-  int rpb_w = 650;
-  int rpb_h = 550;
-  int rpb_x = (win_w - rpb_w) / 2;
-  int rpb_y = (win_h - rpb_h) / 2;
 
-  /* Draw Background */
-  civ_render_rect_filled_alpha(renderer, rpb_x, rpb_y, rpb_w, rpb_h, 0x111111,
-                               230);
-  civ_render_rect_outline(renderer, rpb_x, rpb_y, rpb_w, rpb_h, 0xFFFF00, 2);
+static void render_units_layer(SDL_Renderer *r, civ_game_t *game) {
+  if (!game->unit_manager || !font_hud) return;
+  for (size_t i = 0; i < game->unit_manager->unit_count; i++) {
+    civ_unit_t *u = &game->unit_manager->units[i];
+    if (u->current_strength <= 0) continue;
 
-  /* Title */
-  civ_font_render_aligned(renderer, font_hud, "WONDERS OF THE WORLD", win_w / 2,
-                          rpb_y + 30, 400, 40, 0x00FFFF, CIV_ALIGN_CENTER,
-                          CIV_VALIGN_MIDDLE);
+    float sx, sy;
+    civ_camera_world_to_screen(&cam, last_win_w, last_win_h, (float)u->x,
+                               (float)u->y, &sx, &sy);
+    float size = 48.0f * cam.zoom;
+    if (!civ_camera_is_visible(&cam, last_win_w, last_win_h, (float)u->x,
+                               (float)u->y, 24.0f))
+      continue;
 
-  int curr_y = rpb_y + 80;
-  int box_h = 70;
+    if (selected_unit == u)
+      civ_render_rect_filled_alpha(r, (int)(sx - size / 2 - 4),
+                                   (int)(sy - size / 2 - 4), (int)size + 8,
+                                   (int)size + 8, 0x00A0FF, 180);
 
-  for (int i = 0; i < CIV_WONDER_COUNT; i++) {
-    civ_wonder_t *w = &manager->wonders[i];
-    uint32_t box_color = w->is_built ? 0x444444 : 0x222222;
-    civ_render_rect_filled(renderer, rpb_x + 20, curr_y, rpb_w - 40, box_h,
-                           box_color);
-    civ_render_rect_outline(renderer, rpb_x + 20, curr_y, rpb_w - 40, box_h,
-                            0x666666, 1);
-
-    /* Wonder Name */
-    uint32_t text_color = w->is_built ? 0x888888 : 0xFFFFFF;
-    civ_font_render_aligned(renderer, font_hud, w->name, rpb_x + 30,
-                            curr_y + 10, 300, 30, text_color, CIV_ALIGN_LEFT,
-                            CIV_VALIGN_TOP);
-
-    /* Description */
-    civ_font_render_aligned(renderer, font_hud, w->description, rpb_x + 30,
-                            curr_y + 40, 400, 20, 0xAAAAAA, CIV_ALIGN_LEFT,
-                            CIV_VALIGN_TOP);
-
-    /* Status or Bonus */
-    if (w->is_built) {
-      char built_msg[64];
-      snprintf(built_msg, sizeof(built_msg), "Built by: %s", w->builder_id);
-      civ_font_render_aligned(renderer, font_hud, built_msg,
-                              rpb_x + rpb_w - 180, curr_y + 25, 150, 25,
-                              0xAA8800, CIV_ALIGN_RIGHT, CIV_VALIGN_MIDDLE);
-    } else {
-      char bonus_text[64] = "";
-      if (w->effects.science_mult > 0)
-        snprintf(bonus_text, 64, "+%d%% Science",
-                 (int)(w->effects.science_mult * 100));
-      else if (w->effects.production_mult > 0)
-        snprintf(bonus_text, 64, "+%d%% Production",
-                 (int)(w->effects.production_mult * 100));
-      else if (w->effects.gold_mult > 0)
-        snprintf(bonus_text, 64, "+%d%% Gold",
-                 (int)(w->effects.gold_mult * 100));
-
-      civ_font_render_aligned(renderer, font_hud, bonus_text,
-                              rpb_x + rpb_w - 180, curr_y + 25, 150, 25,
-                              0x00FF00, CIV_ALIGN_RIGHT, CIV_VALIGN_MIDDLE);
-    }
-    curr_y += box_h + 10;
+    uint32_t color = u->has_moved ? 0x555555 : 0xFF2200;
+    if (u->unit_type == CIV_UNIT_TYPE_SETTLER) color = 0x00FFCC;
+    civ_render_rect_filled(r, (int)(sx - size / 2), (int)(sy - size / 2),
+                           (int)size, (int)size, color);
+    civ_render_rect_outline(r, (int)(sx - size / 2), (int)(sy - size / 2),
+                            (int)size, (int)size, 0xFFFFFF, 1);
   }
 }
 
-static void render_governance_panel(SDL_Renderer *renderer,
-                                    civ_government_t *gov) {
-  int win_w = last_win_w;
-  int win_h = last_win_h;
-  int gpb_w = 500;
-  int gpb_h = 400;
-  int gpb_x = (win_w - gpb_w) / 2;
-  int gpb_y = (win_h - gpb_h) / 2;
+static void render_settlements_layer(SDL_Renderer *r, civ_game_t *game) {
+  if (!game->settlement_manager || !font_hud) return;
+  for (size_t i = 0; i < game->settlement_manager->settlement_count; i++) {
+    civ_settlement_t *s = &game->settlement_manager->settlements[i];
+    float sx, sy;
+    civ_camera_world_to_screen(&cam, last_win_w, last_win_h, s->x, s->y, &sx,
+                               &sy);
+    if (!civ_camera_is_visible(&cam, last_win_w, last_win_h, s->x, s->y, 26.0f))
+      continue;
 
-  civ_render_rect_filled_alpha(renderer, gpb_x, gpb_y, gpb_w, gpb_h, 0x1A1405,
-                               250);
-  civ_render_rect_outline(renderer, gpb_x, gpb_y, gpb_w, gpb_h, 0xFFCC00, 2);
-  civ_render_line(renderer, gpb_x, gpb_y + 50, gpb_x + gpb_w, gpb_y + 50,
-                  0x3A2A1A);
+    float size = 52.0f * cam.zoom;
+    if (selected_settlement == s)
+      civ_render_rect_outline(r, (int)(sx - size / 2), (int)(sy - size / 2),
+                              (int)size, (int)size, 0xFFFF00, 2);
 
-  civ_font_render_aligned(renderer, font_hud, "NATIONAL GOVERNANCE", gpb_x + 20,
-                          gpb_y, gpb_w - 40, 50, 0xFFFFFF, CIV_ALIGN_CENTER,
-                          CIV_VALIGN_MIDDLE);
+    char label[64];
+    sprintf(label, "%s (Pop: %lld)", s->name, s->population);
+    civ_font_render_aligned(r, font_hud, label, (int)sx - 100, (int)sy + 30,
+                            200, 20, 0xFFFFFF, CIV_ALIGN_CENTER,
+                            CIV_VALIGN_TOP);
+  }
+}
 
-  int curr_y = gpb_y + 70;
-  const char *type_str = "Chiefdom";
-  if (gov->government_type == CIV_GOV_DESPOTISM)
-    type_str = "Despotism";
-  else if (gov->government_type == CIV_GOV_MONARCHY)
-    type_str = "Monarchy";
-  else if (gov->government_type == CIV_GOV_REPUBLIC)
-    type_str = "Republic";
-  else if (gov->government_type == CIV_GOV_DEMOCRACY)
-    type_str = "Democracy";
+static void render_hud_top(SDL_Renderer *r, civ_game_t *game) {
+  civ_render_rect_filled_alpha(r, 0, 0, last_win_w, 38, 0x050A14, 235);
+  civ_render_line(r, 0, 38, last_win_w, 38, 0x1A2A3A);
+
+  float lat = 90.0f - (cam.y / (float)cam.map_height) * 180.0f;
+  float lon = (cam.x / (float)cam.map_width) * 360.0f - 180.0f;
+  while (lon < -180.0f) lon += 360.0f;
+  while (lon > 180.0f) lon -= 360.0f;
 
   char buf[128];
-  sprintf(buf, "TYPE: %s", type_str);
-  civ_font_render_aligned(renderer, font_hud, buf, gpb_x + 30, curr_y,
-                          gpb_w - 60, 30, 0xFFCC00, CIV_ALIGN_LEFT,
-                          CIV_VALIGN_TOP);
-  curr_y += 40;
+  /* Time — left section */
+  char time_buf[64];
+  if (game->time_engine) {
+    civ_time_engine_format_hud((civ_time_engine_t *)game->time_engine,
+                               time_buf, sizeof(time_buf));
+  } else {
+    snprintf(time_buf, sizeof(time_buf), "Turn %d", game->current_turn);
+  }
+  civ_font_render_aligned(r, font_hud, time_buf, 228, 0, 260, 38,
+                          CIV_COLOR_PRIMARY, CIV_ALIGN_LEFT, CIV_VALIGN_MIDDLE);
 
-  civ_font_render_aligned(renderer, font_hud, "STABILITY", gpb_x + 30, curr_y,
-                          120, 20, 0xAAAAAA, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
-  civ_render_rect_filled(renderer, gpb_x + 160, curr_y + 5, 200, 10, 0x333333);
-  civ_render_rect_filled(renderer, gpb_x + 160, curr_y + 5,
-                         (int)(200 * gov->stability), 10, 0x00A0FF);
-  curr_y += 30;
-
-  civ_font_render_aligned(renderer, font_hud, "LEGITIMACY", gpb_x + 30, curr_y,
-                          120, 20, 0xAAAAAA, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
-  civ_render_rect_filled(renderer, gpb_x + 160, curr_y + 5, 200, 10, 0x333333);
-  civ_render_rect_filled(renderer, gpb_x + 160, curr_y + 5,
-                         (int)(200 * gov->legitimacy), 10, 0x00FF88);
-  curr_y += 30;
-
-  civ_font_render_aligned(renderer, font_hud, "EFFICIENCY", gpb_x + 30, curr_y,
-                          120, 20, 0xAAAAAA, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
-  civ_render_rect_filled(renderer, gpb_x + 160, curr_y + 5, 200, 10, 0x333333);
-  civ_render_rect_filled(renderer, gpb_x + 160, curr_y + 5,
-                         (int)(200 * gov->efficiency), 10, 0xFFCC00);
-  curr_y += 50;
-
-  civ_float_t taxes = civ_government_collect_taxes(gov);
-  sprintf(buf, "ESTIMATED ANNUAL TAX REVENUE: %.1f GOLD", taxes);
-  civ_font_render_aligned(renderer, font_hud, buf, gpb_x + 30, curr_y,
-                          gpb_w - 60, 30, 0xFFFFFF, CIV_ALIGN_LEFT,
-                          CIV_VALIGN_TOP);
-  curr_y += 40;
-
-  /* Phase 11: Stature & Identity */
-  civ_render_line(renderer, gpb_x + 20, curr_y, gpb_x + gpb_w - 20, curr_y,
-                  0x3A2A1A);
-  curr_y += 10;
-
-  const char *tier_names[] = {
-      "FAILED STATE",   "FRONTIER NATION", "DEVELOPING STATE", "STABLE STATE",
-      "REGIONAL POWER", "GREAT POWER",     "HEGEMON"};
-  sprintf(buf, "GLOBAL STATURE: %s", tier_names[gov->stature_tier]);
-  civ_font_render_aligned(renderer, font_hud, buf, gpb_x + 30, curr_y,
-                          gpb_w - 60, 30, 0x00FFFF, CIV_ALIGN_CENTER,
-                          CIV_VALIGN_TOP);
-  curr_y += 40;
-
-  civ_font_render_aligned(renderer, font_hud, "IDENTITY PROFILE", gpb_x + 30,
-                          curr_y, gpb_w - 60, 20, 0xAAAAAA, CIV_ALIGN_LEFT,
-                          CIV_VALIGN_TOP);
-  curr_y += 25;
-
-  sprintf(buf, "Primary Language: ID %d | Faith: ID %d | Race: ID %d", 0, 0,
-          0); /* Values hardcoded for demo or extracted from gov */
-  civ_font_render_aligned(renderer, font_hud, buf, gpb_x + 30, curr_y,
-                          gpb_w - 60, 20, 0xCCCCCC, CIV_ALIGN_LEFT,
-                          CIV_VALIGN_TOP);
-}
-
-static void render_rulebook_editor(SDL_Renderer *renderer,
-                                   civ_government_t *gov) {
-  if (!gov)
-    return;
-
-  int win_w = last_win_w;
-  int win_h = last_win_h;
-  int rbe_w = 700;
-  int rbe_h = 550;
-  int rbe_x = (win_w - rbe_w) / 2;
-  int rbe_y = (win_h - rbe_h) / 2;
-
-  civ_render_rect_filled_alpha(renderer, rbe_x, rbe_y, rbe_w, rbe_h, 0x050A0F,
-                               245);
-  civ_render_rect_outline(renderer, rbe_x, rbe_y, rbe_w, rbe_h, 0x00A0FF, 2);
-
-  civ_font_render_aligned(renderer, font_hud, "STATE RULEBOOK & INSTITUTIONS",
-                          rbe_x, rbe_y + 20, rbe_w, 40, 0xFFFFFF,
-                          CIV_ALIGN_CENTER, CIV_VALIGN_TOP);
-
-  int curr_y = rbe_y + 80;
-
-  /* Legislative Logic Section */
-  civ_font_render_aligned(renderer, font_hud, "LEGISLATIVE LOGIC", rbe_x + 30,
-                          curr_y, 300, 30, 0x00A0FF, CIV_ALIGN_LEFT,
-                          CIV_VALIGN_TOP);
-  char buf[128];
-  sprintf(buf, "Voting Threshold: %.0f%% (Simple Majority)",
-          gov->legislative_threshold * 100.0f);
-  civ_font_render_aligned(renderer, font_hud, buf, rbe_x + 40, curr_y + 30, 300,
-                          20, 0xCCCCCC, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
-  curr_y += 70;
-
-  /* Institutions Section */
-  civ_font_render_aligned(renderer, font_hud, "ACTIVE INSTITUTIONS", rbe_x + 30,
-                          curr_y, 300, 30, 0x00A0FF, CIV_ALIGN_LEFT,
-                          CIV_VALIGN_TOP);
-  curr_y += 35;
-
-  if (gov->institution_manager) {
-    for (size_t i = 0; i < gov->institution_manager->count; i++) {
-      civ_institution_t *inst = &gov->institution_manager->items[i];
-      civ_render_rect_filled(renderer, rbe_x + 40, curr_y, rbe_w - 80, 50,
-                             0x1A2A3A);
-      civ_font_render_aligned(renderer, font_hud, inst->name, rbe_x + 50,
-                              curr_y + 5, 300, 20, 0xFFFFFF, CIV_ALIGN_LEFT,
-                              CIV_VALIGN_TOP);
-
-      sprintf(buf, "Stature: %.1f | Maint: %.1f Gold", inst->stature,
-              inst->maintenance_cost);
-      civ_font_render_aligned(renderer, font_hud, buf, rbe_x + 50, curr_y + 25,
-                              400, 20, 0xAAAAAA, CIV_ALIGN_LEFT,
-                              CIV_VALIGN_TOP);
-      curr_y += 60;
-    }
+  /* Science */
+  if (game->technology_tree) {
+    civ_innovation_system_t *it = game->technology_tree;
+    sprintf(buf, "Sci +%.0f  Idx %+d", it->total_budget, it->aggregate_index);
+    civ_font_render_aligned(r, font_hud, buf, 500, 0, 240, 38, 0x00A0FF,
+                            CIV_ALIGN_LEFT, CIV_VALIGN_MIDDLE);
   }
 
-  /* Subdivisions Section */
-  civ_font_render_aligned(renderer, font_hud, "ADMINISTRATIVE SUBDIVISIONS",
-                          rbe_x + 30, curr_y, 300, 30, 0x00A0FF, CIV_ALIGN_LEFT,
-                          CIV_VALIGN_TOP);
-  curr_y += 35;
-  if (gov->subdivision_manager) {
-    for (size_t i = 0; i < gov->subdivision_manager->count; i++) {
-      civ_subdivision_t *sub = &gov->subdivision_manager->items[i];
-      sprintf(buf, "%s (%s) - Autonomy: %.0f%%", sub->name,
-              (sub->type == CIV_SUBDIVISION_COLONY ? "COLONY" : "STATE"),
-              sub->autonomy * 100.0f);
-      civ_font_render_aligned(renderer, font_hud, buf, rbe_x + 40, curr_y, 500,
-                              20, 0xCCCCCC, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
-      curr_y += 25;
+  /* Coords */
+  sprintf(buf, "%.0f%c %.0f%c  z%.1f",
+          fabsf(lat), lat >= 0 ? 'N' : 'S',
+          fabsf(lon), lon >= 0 ? 'E' : 'W',
+          cam.zoom * 10.0f);
+  civ_font_render_aligned(r, font_hud, buf, 750, 0, 200, 38,
+                          CIV_COLOR_TEXT_DIM, CIV_ALIGN_LEFT, CIV_VALIGN_MIDDLE);
+
+  /* Hovered country — info card */
+  if (hovered_country[0]) {
+    civ_font_render_aligned(r, font_hud, hovered_country, 255, 0, 180, 38,
+                            0xFFCC00, CIV_ALIGN_LEFT, CIV_VALIGN_MIDDLE);
+    /* Info card near cursor */
+    int cx = (int)hover_country_x + 18, cy = (int)hover_country_y + 18;
+    int cw = 180, ch = 72;
+    /* Keep on screen */
+    if (cx + cw > last_win_w) cx = (int)hover_country_x - cw - 10;
+    if (cy + ch > last_win_h) cy = (int)hover_country_y - ch - 10;
+
+    civ_render_rect_filled_alpha(r, cx, cy, cw, ch, 0x0A1220, 240);
+    civ_render_rect_outline(r, cx, cy, cw, ch, 0xFFCC00, 1);
+    civ_font_render_aligned(r, font_hud, hovered_country, cx + 8, cy + 4,
+                            cw - 16, 20, 0xFFCC00, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
+    /* Look up nation data */
+    civ_nation_t *nat = NULL;
+    if (game->nation_manager)
+      nat = civ_nation_get_by_id((civ_nation_manager_t *)game->nation_manager,
+                                  hovered_country);
+    char info[64] = "Independent State";
+    if (nat) {
+      snprintf(info, sizeof(info), "Pop: %lldM | Gov: %s",
+               nat->population / 1000000,
+               civ_government_proximity_label(nat->government));
     }
+    civ_font_render_aligned(r, font_hud, info, cx + 8, cy + 26,
+                            cw - 16, 18, 0x8899AA, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
+    civ_font_render_aligned(r, font_hud, "Click for details", cx + 8, cy + 48,
+                            cw - 16, 16, 0x556677, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
+  }
+
+}
+
+static void render_hud_buttons(SDL_Renderer *r, civ_input_state_t *input) {
+  /* Compact icon-style buttons in top bar, with dividers */
+  const char *labels[] = {"R", "T", "G", "W", "D"};
+  uint32_t colors[] = {0x00A0FF, 0x00A0FF, 0xFFCC00, 0xFFFF00, 0xFFFF00};
+  bool *states[] = {&show_rulebook, &show_research, &show_government,
+                    &show_wonders, &show_diplomacy};
+  int n = 5, btn_s = 34, gap = 2;
+  int total_w = n * btn_s + (n-1) * gap;
+  int start_x = last_win_w - total_w - 14;
+
+  for (int i = 0; i < n; i++) {
+    int bx = start_x + i * (btn_s + gap);
+    bool active = *states[i];
+    bool hov = civ_input_is_mouse_over(input, bx, 3, btn_s, btn_s);
+    uint32_t bg = active ? colors[i] : (hov ? 0x2A3A4A : 0x152030);
+    civ_render_rect_filled_alpha(r, bx, 3, btn_s, btn_s, bg, active ? 200 : 160);
+    civ_render_rect_outline(r, bx, 3, btn_s, btn_s,
+                            active ? 0xFFFFFF : 0x1A2A3A, 1);
+    civ_font_render_aligned(r, font_hud, labels[i], bx, 3, btn_s, btn_s,
+                            active ? 0xFFFFFF : 0x8899AA,
+                            CIV_ALIGN_CENTER, CIV_VALIGN_MIDDLE);
   }
 }
 
+static void render_time_controls(SDL_Renderer *r, civ_game_t *game,
+                                  civ_input_state_t *input) {
+  /* Speed control buttons: PAUSE | 1x | 2x | 5x */
+  const char *labels[] = {"| |",  "1x",  "2x",  "5x"};
+  int speeds[] =         {0,      1,     2,     3};
+  int n_btns = 4, btn_w = 44, btn_h = 34, gap = 4;
+  int total_w = n_btns * btn_w + (n_btns - 1) * gap;
+  int start_x = last_win_w - total_w - 20, btn_y = last_win_h - btn_h - 16;
+
+  for (int i = 0; i < n_btns; i++) {
+    int bx = start_x + i * (btn_w + gap);
+    bool active = (time_speed == speeds[i]);
+    bool hov = civ_input_is_mouse_over(input, bx, btn_y, btn_w, btn_h);
+    uint32_t bg = active ? 0x004A7A : (hov ? 0x2A3A4A : 0x1A2A3A);
+    civ_render_rect_filled_alpha(r, bx, btn_y, btn_w, btn_h, bg, 220);
+    civ_render_rect_outline(r, bx, btn_y, btn_w, btn_h,
+                            active ? 0x00A0FF : 0x1A2A3A, 1);
+    civ_font_render_aligned(r, font_hud, labels[i], bx, btn_y, btn_w, btn_h,
+                            active ? 0xFFFFFF : 0x8899AA,
+                            CIV_ALIGN_CENTER, CIV_VALIGN_MIDDLE);
+    /* Click to set speed */
+    if (input->mouse_left_pressed && hov) time_speed = speeds[i];
+  }
+
+  /* Time display */
+  char buf[64];
+  if (game->time_engine) {
+    civ_time_engine_format_hud((civ_time_engine_t *)game->time_engine,
+                               buf, sizeof(buf));
+  } else {
+    snprintf(buf, sizeof(buf), "Turn %d", game->current_turn);
+  }
+  civ_font_render_aligned(r, font_hud, buf, start_x - 12, btn_y, start_x - 20,
+                          btn_h, 0xAABBCC, CIV_ALIGN_RIGHT, CIV_VALIGN_MIDDLE);
+  (void)game;
+}
+
+static void render_minimap_layer(SDL_Renderer *r, civ_game_t *game) {
+  int mm_w = 200, mm_h = 150, mm_x = 20, mm_y = last_win_h - mm_h - 20;
+  civ_render_minimap(r, mm_x, mm_y, mm_w, mm_h, game->world_map, NULL);
+  /* View rect on minimap */
+  float view_w = last_win_w / (cam.zoom * 4.0f);
+  float view_h = last_win_h / (cam.zoom * 4.0f);
+  float rx = (cam.x / (float)game->world_map->width) * (float)mm_w + (float)mm_x -
+             view_w / (float)game->world_map->width * (float)mm_w / 2.0f;
+  float ry = (cam.y / (float)game->world_map->height) * (float)mm_h + (float)mm_y -
+             view_h / (float)game->world_map->height * (float)mm_h / 2.0f;
+  civ_render_rect_outline(r, (int)rx, (int)ry,
+                          (int)(view_w / game->world_map->width * mm_w),
+                          (int)(view_h / game->world_map->height * mm_h),
+                          0xFFFFFF, 1);
+}
+
+/* ── Scene lifecycle ─────────────────────────────────────────────── */
 static void init(void) {
   printf("[SCENE_GAME] Initializing...\n");
-  font_hud = civ_font_load_system("Inter", 18);
-  if (!font_hud)
-    font_hud = civ_font_load_system("Segoe UI", 18);
-
+  civ_theme_init_default();
+  font_hud = civ_font_load_system("Inter", 12);
+  if (!font_hud) font_hud = civ_font_load_system("Segoe UI", 12);
+  civ_debug_overlay_init(&debug);
   selected_unit = NULL;
+  selected_settlement = NULL;
+  map_ctx = NULL; /* Created on first render with valid window size */
 }
 
 static void update(civ_game_t *game, civ_input_state_t *input) {
-  if (!map_ctx)
-    return;
+  if (!game || !input) return;
 
-  /* Handle Panning (Right Mouse Button) */
-  if (input->mouse_right_down) {
-    float move_speed = 1.0f / (map_ctx->zoom * 4.0f);
-    map_ctx->view_x -= (float)input->delta_x * move_speed;
-    map_ctx->view_y -= (float)input->delta_y * move_speed;
-  }
+  /* Camera panning (right mouse drag) */
+  if (input->mouse_right_down)
+    civ_camera_pan(&cam, -(float)input->delta_x, -(float)input->delta_y);
 
-  /* Handle Zooming (Scroll Wheel) */
+  /* Zoom */
   if (fabsf(input->scroll_delta) > 0.1f) {
-    float zoom_speed = 1.15f;
-    if (input->scroll_delta > 0) {
-      map_ctx->zoom *= zoom_speed;
-    } else {
-      map_ctx->zoom /= zoom_speed;
-    }
-
-    /* Clamp Zoom */
-    if (map_ctx->zoom < 0.005f)
-      map_ctx->zoom = 0.005f;
-    if (map_ctx->zoom > 2.0f)
-      map_ctx->zoom = 2.0f;
+    float factor = input->scroll_delta > 0 ? 1.15f : 1.0f / 1.15f;
+    civ_camera_zoom(&cam, factor,
+                    cam.x + (input->mouse_x - last_win_w / 2.0f) /
+                                (cam.zoom * 4.0f),
+                    cam.y + (input->mouse_y - last_win_h / 2.0f) /
+                                (cam.zoom * 4.0f));
   }
 
-  /* Handle Selection and Interaction */
-  if (input->mouse_left_pressed) {
-    /* Check if "Next Turn" button clicked (Bottom-Right) */
-    int btn_w = 180;
-    int btn_h = 50;
-    int btn_x = last_win_w - btn_w - 20;
-    int btn_y = last_win_h - btn_h - 20;
+  /* Initialize camera on first frame */
+  if (cam.map_width == 0 && game->world_map) {
+    civ_camera_init(&cam, game->world_map->width, game->world_map->height);
+  }
+  civ_camera_update(&cam, 1.0f / 60.0f);
 
-    if (input->mouse_x >= btn_x && input->mouse_x <= btn_x + btn_w &&
-        input->mouse_y >= btn_y && input->mouse_y <= btn_y + btn_h) {
+  /* Drawer: auto-open when content available, close when empty */
+  bool has_sidebar = (selected_unit != NULL || selected_settlement != NULL ||
+                      show_diplomacy);
+
+  /* Auto-spawn initial units */
+  if (game->unit_manager && game->unit_manager->unit_count == 0) {
+    civ_unit_manager_spawn_unit(game->unit_manager, CIV_UNIT_TYPE_SETTLER,
+                                "Settlers", 100, game->world_map->width / 2,
+                                game->world_map->height / 2);
+    civ_unit_manager_spawn_unit(game->unit_manager, CIV_UNIT_TYPE_INFANTRY,
+                                "Barbarians", 80, game->world_map->width / 2 + 1,
+                                game->world_map->height / 2);
+    update_visibility(game);
+  }
+
+  /* ── Organic time flow ─────────────────────────────── */
+  /* Space toggles pause, 1/2/3 keys set speed */
+  if (input->esc_pressed && time_speed == 0) time_speed = 1;
+  else if (input->esc_pressed) time_speed = 0;
+
+  float speeds[] = {0.0f, 1.0f, 2.0f, 5.0f};
+  float game_days = input->global_dt > 0.0f
+      ? input->global_dt * days_per_second * speeds[time_speed]
+      : 0.0f;
+
+  /* Only advance if we have a valid delta (app_controller provides it) */
+  if (game_days > 0.0f && game->time_engine && time_speed > 0) {
+    time_accumulator += game_days;
+    /* Advance time engine when enough days have passed (~30 days per old turn) */
+    float days_per_advance = 365.0f / 12.0f; /* monthly advance */
+    while (time_accumulator >= days_per_advance) {
+      time_accumulator -= days_per_advance;
+      civ_time_engine_advance_turn((civ_time_engine_t *)game->time_engine);
+      game->current_turn++;
+      /* Process systems that used to run on end_turn */
       civ_game_end_turn(game);
-      return;
     }
+  }
 
-    /* Map Space Selection */
-    float world_x = map_ctx->view_x + (float)(input->mouse_x - last_win_w / 2) /
-                                          (64.0f * map_ctx->zoom);
-    float world_y = map_ctx->view_y + (float)(input->mouse_y - last_win_h / 2) /
-                                          (64.0f * map_ctx->zoom);
-
-    int32_t tx = (int32_t)floorf(world_x);
-    int32_t ty = (int32_t)floorf(world_y);
-
-    /* Selection Logic */
-    civ_unit_t *old_unit = selected_unit;
-    civ_settlement_t *old_settlement = selected_settlement;
-
-    selected_unit = NULL;
-    selected_settlement = NULL;
-
-    /* 1. Check for settlements first */
-    if (game->settlement_manager) {
-      for (size_t i = 0; i < game->settlement_manager->settlement_count; i++) {
-        if ((int32_t)game->settlement_manager->settlements[i].x == tx &&
-            (int32_t)game->settlement_manager->settlements[i].y == ty) {
-          selected_settlement = &game->settlement_manager->settlements[i];
-          printf("[SCENE_GAME] Selected settlement: %s\n",
-                 selected_settlement->name);
-          break;
+  /* Nation hover detection — only on map screen */
+  hovered_country[0] = '\0';
+  if (current_screen == SCR_MAP && game->world_map && input->win_w > 0) {
+    float wx, wy;
+    civ_camera_screen_to_world(&cam, input->win_w, input->win_h,
+                               input->mouse_x, input->mouse_y, &wx, &wy);
+    int32_t tx = (int32_t)wx, ty = (int32_t)wy;
+    if (tx >= 0 && ty >= 0 && tx < game->world_map->width && ty < game->world_map->height) {
+      int16_t cid = civ_political_borders_tile_country(tx, ty, game->world_map->width);
+      if (cid >= 0) {
+        const char *nm = civ_political_borders_country_name(cid);
+        if (nm) {
+          snprintf(hovered_country, sizeof(hovered_country), "%s", nm);
         }
+        hover_country_x = (float)input->mouse_x;
+        hover_country_y = (float)input->mouse_y;
       }
     }
+  }
 
-    /* 2. Check for units if no settlement selected */
-    if (!selected_settlement && game->unit_manager) {
-      for (size_t i = 0; i < game->unit_manager->unit_count; i++) {
-        if (game->unit_manager->units[i].x == tx &&
-            game->unit_manager->units[i].y == ty) {
-          selected_unit = &game->unit_manager->units[i];
-          printf("[SCENE_GAME] Selected unit: %s\n", selected_unit->name);
-          break;
-        }
-      }
-    }
+  /* ── Click handling ────────────────────────────────────── */
+  if (!input->mouse_left_pressed) return;
 
-    /* Handle HUD Toggles */
-    if (input->mouse_x > last_win_w - 680 &&
-        input->mouse_x < last_win_w - 530 && input->mouse_y < 40) {
-      show_diplomacy = !show_diplomacy;
-      if (show_diplomacy) {
-        show_research = show_government = show_wonders = false;
-      }
-    }
-    if (input->mouse_x > last_win_w - 530 &&
-        input->mouse_x < last_win_w - 380 && input->mouse_y < 40) {
-      show_wonders = !show_wonders;
-      if (show_wonders) {
-        show_diplomacy = show_research = show_government = false;
-      }
-    }
-    if (input->mouse_x > last_win_w - 380 &&
-        input->mouse_x < last_win_w - 230 && input->mouse_y < 40) {
-      show_government = !show_government;
-      if (show_government) {
-        show_diplomacy = show_research = show_wonders = false;
-      }
-    }
-    if (input->mouse_x > last_win_w - 230 && input->mouse_y < 40) {
-      show_research = !show_research;
-      if (show_research) {
-        show_diplomacy = show_government = show_wonders = show_rulebook = false;
-      }
-    }
-    if (input->mouse_x > last_win_w - 530 &&
-        input->mouse_x < last_win_w - 380 && input->mouse_y < 40) {
-      show_rulebook = !show_rulebook;
-      if (show_rulebook) {
-        show_diplomacy = show_research = show_government = show_wonders = false;
-      }
-    }
-
-    /* Handle Research Panel Clicks */
-    if (show_research && game->technology_tree) {
-      int win_w = last_win_w;
-      int win_h = last_win_h;
-      int rpb_w = 600;
-      int rpb_h = 500;
-      int rpb_x = (win_w - rpb_w) / 2;
-      int rpb_y = (win_h - rpb_h) / 2;
-
-      int curr_y = rpb_y + 70;
-      int tech_box_h = 60;
-
-      for (size_t i = 0; i < game->technology_tree->tech_count; i++) {
-        if (input->mouse_x >= rpb_x + 20 &&
-            input->mouse_x <= rpb_x + rpb_w - 20 && input->mouse_y >= curr_y &&
-            input->mouse_y <= curr_y + tech_box_h) {
-          civ_innovation_system_research_tech(
-              game->technology_tree, game->technology_tree->technologies[i].id);
-          printf("[SCENE_GAME] Started research: %s\n",
-                 game->technology_tree->technologies[i].name);
-        }
-        curr_y += tech_box_h + 15;
-      }
-    }
-
-    /* Deselect if clicked in open space and nothing found */
-    if (!selected_unit && !selected_settlement) {
-      /* But only if not clicking the minimap or sidebar areas */
-      bool on_ui = false;
-      if (input->mouse_x < 220 && input->mouse_y > last_win_h - 170)
-        on_ui = true; /* Minimap */
-      if (input->mouse_x < 300)
-        on_ui = true; /* Sidebar */
-      if (input->mouse_x > last_win_w - 200 && input->mouse_y > last_win_h - 70)
-        on_ui = true; /* End Turn */
-
-      if (!on_ui) {
-        selected_unit = NULL;
-        selected_settlement = NULL;
-      } else {
-        /* Keep selection if clicking UI */
-        selected_unit = old_unit;
-        selected_settlement = old_settlement;
-      }
-    }
-
-    /* Handle Button Actions (Buttons are in sidebars) */
-
-    /* 1. FOUND CITY (Settler selected) */
-    if (selected_unit && selected_unit->unit_type == CIV_UNIT_TYPE_SETTLER &&
-        !selected_unit->has_moved) {
-      int btn_x = 35;
-      int btn_y = 310;
-      int btn_w = 250;
-      int btn_h = 40;
-
-      if (input->mouse_x >= btn_x && input->mouse_x <= btn_x + btn_w &&
-          input->mouse_y >= btn_y && input->mouse_y <= btn_y + btn_h) {
-        civ_attempt_settlement_spawn(game->settlement_manager,
-                                     (float)selected_unit->x,
-                                     (float)selected_unit->y);
-        selected_unit->current_strength = 0;
-        selected_unit = NULL;
-        update_visibility(game);
+  /* Nation selection on map click */
+  if (current_screen == SCR_MAP && game->world_map) {
+    float wx, wy;
+    civ_camera_screen_to_world(&cam, input->win_w, input->win_h,
+                               input->mouse_x, input->mouse_y, &wx, &wy);
+    int32_t tx = (int32_t)wx, ty = (int32_t)wy;
+    if (tx >= 0 && ty >= 0 && tx < game->world_map->width && ty < game->world_map->height) {
+      int16_t cid = civ_political_borders_tile_country(tx, ty, game->world_map->width);
+      const char *nm = civ_political_borders_country_name(cid);
+      if (nm && cid >= 0) {
+        selected_nation_cid = cid;
+        snprintf(selected_nation_id, sizeof(selected_nation_id), "%s", nm);
+        printf("[SELECT] Nation: %s (cid=%d)\n", nm, cid);
+        current_screen = SCR_GOVERNANCE; /* jump to governance */
         return;
       }
     }
+  }
 
-    /* 2. RECRUITMENT (Settlement selected) */
-    if (selected_settlement) {
-      int ssb_x = 20;
-      int ssb_y = 60;
-      int curr_y = ssb_y + 110; /* Roughly near recruitment section */
+  /* Panel toggle buttons */
+  if (input->mouse_x > last_win_w - 680 && input->mouse_x < last_win_w - 530 &&
+      input->mouse_y < 40) {
+    show_diplomacy = !show_diplomacy;
+    if (show_diplomacy) show_research = show_government = show_wonders = false;
+  }
+  if (input->mouse_x > last_win_w - 530 && input->mouse_x < last_win_w - 380 &&
+      input->mouse_y < 40) {
+    show_wonders = !show_wonders;
+    if (show_wonders) show_diplomacy = show_research = show_government = false;
+  }
+  if (input->mouse_x > last_win_w - 380 && input->mouse_x < last_win_w - 230 &&
+      input->mouse_y < 40) {
+    show_government = !show_government;
+    if (show_government) show_diplomacy = show_research = show_wonders = false;
+  }
+  if (input->mouse_x > last_win_w - 230 && input->mouse_y < 40) {
+    show_research = !show_research;
+    if (show_research)
+      show_diplomacy = show_government = show_wonders = show_rulebook = false;
+  }
 
-      /* Hack: the render uses curr_y which is dynamic.
-         Let's use specific fixed offsets for the buttons. */
-      int r1_y = ssb_y + 245;
-      int r2_y = r1_y + 50;
-      int r_w = 260;
-      int r_h = 40;
+  /* Panel click handlers */
+  if (show_research && civ_research_panel_click(game, input, last_win_w, last_win_h))
+    return;
+  if (show_diplomacy &&
+      civ_diplomacy_panel_click(game, input, last_win_w, last_win_h,
+                                has_contacted_rival))
+    return;
 
-      if (!selected_settlement->is_producing) {
-        /* Option 1: Infantry */
-        if (input->mouse_x >= ssb_x + 10 &&
-            input->mouse_x <= ssb_x + 10 + r_w && input->mouse_y >= r1_y &&
-            input->mouse_y <= r1_y + r_h) {
-          selected_settlement->is_producing = true;
-          selected_settlement->production_type = 0;
-          selected_settlement->production_target = 30.0f;
-          selected_settlement->production_progress = 0.0f;
-        }
-        /* Option 2: Settler */
-        if (selected_settlement->population > 500) {
-          if (input->mouse_x >= ssb_x + 10 &&
-              input->mouse_x <= ssb_x + 10 + r_w && input->mouse_y >= r2_y &&
-              input->mouse_y <= r2_y + r_h) {
-            selected_settlement->is_producing = true;
-            selected_settlement->production_type = 7;
-            selected_settlement->production_target = 80.0f;
-            selected_settlement->production_progress = 0.0f;
-          }
-        }
-      }
-    }
+  /* World-space selection */
+  float wx, wy;
+  civ_camera_screen_to_world(&cam, last_win_w, last_win_h, input->mouse_x,
+                             input->mouse_y, &wx, &wy);
+  int32_t tx = (int32_t)floorf(wx), ty = (int32_t)floorf(wy);
 
-    /* 3. DIPLOMACY (Noting selected) */
-    if (!selected_unit && !selected_settlement && show_diplomacy &&
-        has_contacted_rival) {
-      int dsb_x = 20;
-      int dsb_y = 60;
-      int t_y = dsb_y + 120;
-      int n_y = t_y + 50;
-      int w_y = n_y + 50;
-      int d_w = 260;
-      int d_h = 40;
+  civ_unit_t *old_unit = selected_unit;
+  civ_settlement_t *old_settlement = selected_settlement;
+  selected_unit = NULL;
+  selected_settlement = NULL;
 
-      /* Trade Agreement */
-      if (input->mouse_x >= dsb_x + 10 && input->mouse_x <= dsb_x + 10 + d_w &&
-          input->mouse_y >= t_y && input->mouse_y <= t_y + d_h) {
-        civ_diplomacy_system_propose_treaty(
-            game->diplomacy_system, "player", "rival_kingdom",
-            CIV_TREATY_TYPE_TRADE_AGREEMENT, 30);
-      }
-      /* Non-Aggression Pact */
-      if (input->mouse_x >= dsb_x + 10 && input->mouse_x <= dsb_x + 10 + d_w &&
-          input->mouse_y >= n_y && input->mouse_y <= n_y + d_h) {
-        civ_diplomacy_system_propose_treaty(game->diplomacy_system, "player",
-                                            "rival_kingdom",
-                                            CIV_TREATY_TYPE_NON_AGGRESSION, 30);
-      }
-    }
-
-    /* 4. DISCOVERY */
-    if (!selected_unit && !selected_settlement && !show_diplomacy &&
-        game->technology_tree) {
-      /* Tech clicks handled here if we want, but let's keep it simple for now
-       * or restore it. */
-      civ_innovation_system_t *is = game->technology_tree;
-      for (size_t i = 0; i < is->tech_count; i++) {
-        int row_y = 60 + 55 + (int)i * 60;
-        if (input->mouse_x >= 35 && input->mouse_x <= 265 &&
-            input->mouse_y >= row_y && input->mouse_y <= row_y + 50) {
-          civ_innovation_system_research_tech(is, is->technologies[i].id);
-        }
+  /* Check settlement hit */
+  if (game->settlement_manager) {
+    for (size_t i = 0; i < game->settlement_manager->settlement_count; i++) {
+      if ((int32_t)game->settlement_manager->settlements[i].x == tx &&
+          (int32_t)game->settlement_manager->settlements[i].y == ty) {
+        selected_settlement = &game->settlement_manager->settlements[i];
+        break;
       }
     }
   }
 
-  /* Handle Movement (Right Click) */
-  if (input->mouse_right_pressed && selected_unit &&
-      !selected_unit->has_moved) {
-    float world_x = map_ctx->view_x + (float)(input->mouse_x - last_win_w / 2) /
-                                          (64.0f * map_ctx->zoom);
-    float world_y = map_ctx->view_y + (float)(input->mouse_y - last_win_h / 2) /
-                                          (64.0f * map_ctx->zoom);
-    int32_t tx = (int32_t)floorf(world_x);
-    int32_t ty = (int32_t)floorf(world_y);
-
-    int dx = abs(tx - selected_unit->x);
-    int dy = abs(ty - selected_unit->y);
-    if ((dx <= 1 && dy <= 1) && (dx + dy > 0)) {
-      selected_unit->x = tx;
-      selected_unit->y = ty;
-      selected_unit->has_moved = true;
-      update_visibility(game);
+  /* Check unit hit */
+  if (!selected_settlement && game->unit_manager) {
+    for (size_t i = 0; i < game->unit_manager->unit_count; i++) {
+      if (game->unit_manager->units[i].x == tx &&
+          game->unit_manager->units[i].y == ty) {
+        selected_unit = &game->unit_manager->units[i];
+        break;
+      }
     }
   }
 
-  /* First Contact Proximity Check */
+  /* Settlement sidebar clicks */
+  if (selected_settlement && !selected_settlement->is_producing) {
+    int rc = civ_settlement_sidebar_click(selected_settlement, input);
+    if (rc == 1)
+      selected_settlement->is_producing = true,
+      selected_settlement->production_type = 0,
+      selected_settlement->production_target = 30.0f,
+      selected_settlement->production_progress = 0.0f;
+    else if (rc == 2)
+      selected_settlement->is_producing = true,
+      selected_settlement->production_type = 7,
+      selected_settlement->production_target = 80.0f,
+      selected_settlement->production_progress = 0.0f;
+  }
+
+  /* Unit sidebar: Found City */
+  if (selected_unit && selected_unit->unit_type == CIV_UNIT_TYPE_SETTLER &&
+      !selected_unit->has_moved && civ_unit_sidebar_click(selected_unit, input)) {
+    civ_attempt_settlement_spawn(game->settlement_manager,
+                                 (float)selected_unit->x,
+                                 (float)selected_unit->y);
+    selected_unit->current_strength = 0;
+    selected_unit = NULL;
+    update_visibility(game);
+    return;
+  }
+
+  /* Deselect when clicking empty space */
+  bool on_ui = (input->mouse_x < 220 && input->mouse_y > last_win_h - 170) ||
+               (input->mouse_x < 300);
+  if (!selected_unit && !selected_settlement && !on_ui) {
+    selected_unit = old_unit;
+    selected_settlement = old_settlement;
+  }
+
+  /* Unit movement (right click) */
+  if (input->mouse_right_pressed && selected_unit && !selected_unit->has_moved) {
+    int dx = abs(tx - selected_unit->x), dy = abs(ty - selected_unit->y);
+    if (dx <= 1 && dy <= 1 && (dx + dy > 0))
+      selected_unit->x = tx, selected_unit->y = ty,
+      selected_unit->has_moved = true, update_visibility(game);
+  }
+
+  /* First contact check */
   if (game->unit_manager && game->settlement_manager && !has_contacted_rival) {
     for (size_t i = 0; i < game->unit_manager->unit_count; i++) {
       civ_unit_t *u = &game->unit_manager->units[i];
-      if (strstr(u->name, "Rival"))
-        continue;
+      if (strstr(u->name, "Rival")) continue;
       for (size_t j = 0; j < game->settlement_manager->settlement_count; j++) {
         civ_settlement_t *s = &game->settlement_manager->settlements[j];
         if (strcmp(s->id, "rival_capital") == 0) {
-          float dist_sq = (float)((u->x - s->x) * (u->x - s->x) +
-                                  (u->y - s->y) * (u->y - s->y));
-          if (dist_sq < 64.0f) {
-            has_contacted_rival = true;
-            printf("[SCENE_GAME] CONTACT!\n");
-          }
+          float d2 = (float)((u->x - s->x) * (u->x - s->x) +
+                             (u->y - s->y) * (u->y - s->y));
+          if (d2 < 64.0f) has_contacted_rival = true;
         }
       }
     }
@@ -615,834 +522,268 @@ static void update(civ_game_t *game, civ_input_state_t *input) {
 
 static void render(SDL_Renderer *renderer, int win_w, int win_h,
                    civ_game_t *game, civ_input_state_t *input) {
-  if (!game || !game->world_map) {
-    return;
-  }
+  if (!game || !game->world_map) return;
+  last_win_w = win_w;
+  last_win_h = win_h;
 
-  /* Initialize map context if needed */
-  if (!map_ctx) {
-    map_ctx = civ_render_map_context_create(renderer, win_w, win_h,
-                                            game->world_map->width,
-                                            game->world_map->height);
+  /* Lazy-init map rendering context — only when on map screen */
+  if (current_screen == SCR_MAP) {
+    if (!map_ctx && game->world_map) {
+      map_ctx = civ_render_map_context_create(renderer, win_w, win_h,
+                                              game->world_map->width,
+                                              game->world_map->height);
+      if (map_ctx) {
+        map_ctx->view_x = cam.x; map_ctx->view_y = cam.y;
+        map_ctx->zoom = cam.zoom;
+      }
+    }
     if (map_ctx) {
-      map_ctx->view_x = (float)game->world_map->width / 2.0f;
-      map_ctx->view_y = (float)game->world_map->height / 2.0f;
-      map_ctx->zoom = 0.12f;
+      map_ctx->view_x = cam.x; map_ctx->view_y = cam.y;
+      map_ctx->zoom = cam.zoom;
     }
+    float minZ = (float)last_win_h / ((float)game->world_map->height * 4.0f);
+    if (cam.zoom < minZ) { cam.zoom = minZ; if (map_ctx) map_ctx->zoom = minZ; }
   }
 
-  /* 1. Map Render */
-  if (map_ctx) {
-    civ_render_map(renderer, map_ctx, game->world_map, win_w, win_h);
+  /* ── Main content: MAP screen only renders the map ─────── */
+  if (current_screen == SCR_MAP) {
+    render_map_layer(renderer, game);
+    render_settlements_layer(renderer, game);
+    render_units_layer(renderer, game);
+    render_minimap_layer(renderer, game);
+  } else {
+    /* Full-area screen background — covers everything below top bar */
+    int sx = 0, sy = 38, sw = win_w, sh = win_h - sy - 50;
+    civ_render_rect_filled_alpha(renderer, sx, sy, sw, sh, 0x060A14, 255);
 
-    /* 1.1. Render Borders (Contour Rendering) */
-    if (game->world_map) {
-      /* Only render borders within the view frustum */
-      int32_t start_tx = (int32_t)floorf(
-          map_ctx->view_x - (win_w / 2.0f) / (64.0f * map_ctx->zoom));
-      int32_t end_tx = (int32_t)ceilf(map_ctx->view_x +
-                                      (win_w / 2.0f) / (64.0f * map_ctx->zoom));
-      int32_t start_ty = (int32_t)floorf(
-          map_ctx->view_y - (win_h / 2.0f) / (64.0f * map_ctx->zoom));
-      int32_t end_ty = (int32_t)ceilf(map_ctx->view_y +
-                                      (win_h / 2.0f) / (64.0f * map_ctx->zoom));
-
-      for (int32_t ty = start_ty; ty <= end_ty; ty++) {
-        for (int32_t tx = start_tx; tx <= end_tx; tx++) {
-          /* Handle map wrapping for X */
-          int32_t wrapped_tx =
-              (tx % game->world_map->width + game->world_map->width) %
-              game->world_map->width;
-
-          if (ty >= 0 && ty < game->world_map->height) {
-            civ_map_tile_t *tile =
-                civ_map_get_tile(game->world_map, wrapped_tx, ty);
-            if (tile && tile->owner_id[0] != '\0') {
-              /* Convert tile to screen coords */
-              float screen_x = (float)win_w / 2.0f +
-                               (tx - map_ctx->view_x) * 64.0f * map_ctx->zoom;
-              float screen_y = (float)win_h / 2.0f +
-                               (ty - map_ctx->view_y) * 64.0f * map_ctx->zoom;
-              float tile_size = 64.0f * map_ctx->zoom;
-
-              /* Choose color based on owner */
-              uint32_t border_color = 0xFFFF00; /* Default: Player (Yellow) */
-              if (strstr(tile->owner_id, "rival")) {
-                border_color = 0xFF2200; /* Rival (Red) */
-              }
-
-              /* 1. Draw subtle alpha fill for the territory */
-              civ_render_rect_filled_alpha(renderer, (int)screen_x,
-                                           (int)screen_y, (int)tile_size,
-                                           (int)tile_size, border_color, 40);
-
-              /* 2. Contour Borders: Draw only if neighbors have different
-               * owners */
-
-              /* Check Right neighbor */
-              int32_t r_tx = (wrapped_tx + 1) % game->world_map->width;
-              civ_map_tile_t *r_tile =
-                  civ_map_get_tile(game->world_map, r_tx, ty);
-              if (!r_tile || strcmp(r_tile->owner_id, tile->owner_id) != 0) {
-                civ_render_line(renderer, (int)(screen_x + tile_size),
-                                (int)screen_y, (int)(screen_x + tile_size),
-                                (int)(screen_y + tile_size), border_color);
-              }
-
-              /* Check Left neighbor */
-              int32_t l_tx = (wrapped_tx - 1 + game->world_map->width) %
-                             game->world_map->width;
-              civ_map_tile_t *l_tile =
-                  civ_map_get_tile(game->world_map, l_tx, ty);
-              if (!l_tile || strcmp(l_tile->owner_id, tile->owner_id) != 0) {
-                civ_render_line(renderer, (int)screen_x, (int)screen_y,
-                                (int)screen_x, (int)(screen_y + tile_size),
-                                border_color);
-              }
-
-              /* Check Top neighbor */
-              if (ty > 0) {
-                civ_map_tile_t *t_tile =
-                    civ_map_get_tile(game->world_map, wrapped_tx, ty - 1);
-                if (!t_tile || strcmp(t_tile->owner_id, tile->owner_id) != 0) {
-                  civ_render_line(renderer, (int)screen_x, (int)screen_y,
-                                  (int)(screen_x + tile_size), (int)screen_y,
-                                  border_color);
-                }
-              } else {
-                /* Top edge of the world */
-                civ_render_line(renderer, (int)screen_x, (int)screen_y,
-                                (int)(screen_x + tile_size), (int)screen_y,
-                                border_color);
-              }
-
-              /* Check Bottom neighbor */
-              if (ty < game->world_map->height - 1) {
-                civ_map_tile_t *b_tile =
-                    civ_map_get_tile(game->world_map, wrapped_tx, ty + 1);
-                if (!b_tile || strcmp(b_tile->owner_id, tile->owner_id) != 0) {
-                  civ_render_line(renderer, (int)screen_x,
-                                  (int)(screen_y + tile_size),
-                                  (int)(screen_x + tile_size),
-                                  (int)(screen_y + tile_size), border_color);
-                }
-              } else {
-                /* Bottom edge of the world */
-                civ_render_line(renderer, (int)screen_x,
-                                (int)(screen_y + tile_size),
-                                (int)(screen_x + tile_size),
-                                (int)(screen_y + tile_size), border_color);
-              }
-            }
-          }
-        }
-      }
+    /* Screen header */
+    const char *titles[] = {"DIPLOMACY", "ECONOMY", "MILITARY",
+                            "TECHNOLOGY", "GOVERNANCE", "CULTURE"};
+    int si = current_screen - 1;
+    if (si >= 0 && si < 6) {
+      civ_font_render_aligned(renderer, font_hud, titles[si],
+                              sx + 230, sy + 12, sw - 250, 28,
+                              CIV_COLOR_PRIMARY, CIV_ALIGN_LEFT, CIV_VALIGN_MIDDLE);
     }
 
-    civ_render_settlements(renderer, map_ctx, game->settlement_manager, win_w,
-                           win_h);
-  }
+    int cx = 230, cy = sy + 50, cw = sw - cx - 20, ch = sh - 80;
 
-  /* HUD Buttons: GOVERNANCE | WONDERS | RESEARCH | RULEBOOK */
-  int hb_w = 120;
-  int hb_h = 40;
-  int hb_y = 0;
-
-  struct {
-    const char *label;
-    bool *active;
-    uint32_t color;
-  } buttons[] = {{"RULEBOOK", &show_rulebook, 0x00A0FF},
-                 {"RESEARCH", &show_research, 0x00A0FF},
-                 {"GOVERNMENT", &show_government, 0xFFCC00},
-                 {"WONDERS", &show_wonders, 0xFFFF00}};
-
-  for (int i = 0; i < 4; i++) {
-    int bx = win_w - (i + 1) * (hb_w + 10) - 20;
-    bool hov = (input->mouse_x >= bx && input->mouse_x <= bx + hb_w &&
-                input->mouse_y < hb_h);
-    civ_render_rect_filled_alpha(renderer, bx, hb_y, hb_w, hb_h,
-                                 hov ? 0x2A3A4A : 0x1A2A3A, 220);
-    civ_render_rect_outline(renderer, bx, hb_y, hb_w, hb_h, buttons[i].color,
-                            1);
-    civ_font_render_aligned(renderer, font_hud, buttons[i].label, bx, hb_y,
-                            hb_w, hb_h, 0xFFFFFF, CIV_ALIGN_CENTER,
-                            CIV_VALIGN_MIDDLE);
-  }
-
-  /* Spawn initial unit if none exist for testing */
-  if (game->unit_manager && game->unit_manager->unit_count == 0) {
-    civ_unit_manager_spawn_unit(game->unit_manager, CIV_UNIT_TYPE_SETTLER,
-                                "Settlers", 100, game->world_map->width / 2,
-                                game->world_map->height / 2);
-
-    /* Spawn an "Enemy" for combat testing */
-    civ_unit_manager_spawn_unit(
-        game->unit_manager, CIV_UNIT_TYPE_INFANTRY, "Barbarians", 80,
-        game->world_map->width / 2 + 1, game->world_map->height / 2);
-
-    update_visibility(game);
-  }
-
-  civ_render_rect_filled_alpha(renderer, 0, 0, win_w, 40, 0x050A14, 220);
-  civ_render_line(renderer, 0, 40, win_w, 40, 0x1A2A3A);
-
-  if (map_ctx && font_hud) {
-    float lat = 90.0f - (map_ctx->view_y / (float)map_ctx->map_height) * 180.0f;
-    float lon = (map_ctx->view_x / (float)map_ctx->map_width) * 360.0f - 180.0f;
-    while (lon < -180.0f)
-      lon += 360.0f;
-    while (lon > 180.0f)
-      lon -= 360.0f;
-
-    char buf[128];
-    sprintf(buf,
-            "ATLAS POSITION: %.2f%c | %.2f%c    [POLITICAL ATLAS MODE "
-            "ACTIVE]",
-            fabsf(lat), lat >= 0 ? 'N' : 'S', fabsf(lon), lon >= 0 ? 'E' : 'W');
-
-    civ_font_render_aligned(renderer, font_hud, buf, 20, 0, win_w - 40, 40,
-                            CIV_COLOR_PRIMARY, CIV_ALIGN_LEFT,
-                            CIV_VALIGN_MIDDLE);
-
-    sprintf(buf, "ZOOM: %.1fx", map_ctx->zoom * 10.0f);
-    civ_font_render_aligned(renderer, font_hud, buf, 20, 0, win_w - 40, 40,
-                            CIV_COLOR_TEXT_DIM, CIV_ALIGN_RIGHT,
-                            CIV_VALIGN_MIDDLE);
-
-    /* 2.1. Science & Research Display */
-    if (game->technology_tree) {
-      char sci_buf[128];
-      civ_innovation_system_t *it = game->technology_tree;
-
-      sprintf(sci_buf, "SCIENCE: +%.1f/YR", it->research_budget);
-      civ_font_render_aligned(renderer, font_hud, sci_buf, 20, 0, 200, 40,
-                              0x00A0FF, CIV_ALIGN_LEFT, CIV_VALIGN_MIDDLE);
-
-      /* Current Research Progress */
-      if (it->current_research) {
-        civ_technology_node_t *current_tech = NULL;
-        for (size_t i = 0; i < it->tech_count; i++) {
-          if (strcmp(it->technologies[i].id, it->current_research) == 0) {
-            current_tech = &it->technologies[i];
-            break;
-          }
-        }
-
-        if (current_tech) {
-          char tech_buf[128];
-          sprintf(tech_buf, "RESEARCHING: %s", current_tech->name);
-          civ_font_render_aligned(renderer, font_hud, tech_buf, 230, 0, 250, 40,
-                                  0xFFCC00, CIV_ALIGN_LEFT, CIV_VALIGN_MIDDLE);
-
-          float progress =
-              current_tech->progress / current_tech->base_research_cost;
-          civ_render_rect_filled(renderer, 480, 15, 150, 10, 0x1A2A3A);
-          civ_render_rect_filled(renderer, 480, 15, (int)(150 * progress), 10,
-                                 0x00FF00);
-        }
-      } else {
-        civ_font_render_aligned(renderer, font_hud, "[NO RESEARCH SELECTED]",
-                                230, 0, 250, 40, 0xFF4444, CIV_ALIGN_LEFT,
-                                CIV_VALIGN_MIDDLE);
-      }
-    }
-
-    /* 2.2. Navigation Buttons */
-    uint32_t dip_color = show_diplomacy ? 0xFFFF00 : 0xAAAAAA;
-    civ_font_render_aligned(renderer, font_hud, "DIPLOMACY [M]", win_w - 680, 0,
-                            150, 40, dip_color, CIV_ALIGN_LEFT,
-                            CIV_VALIGN_MIDDLE);
-
-    uint32_t won_color = show_wonders ? 0xFFFF00 : 0xAAAAAA;
-    civ_font_render_aligned(renderer, font_hud, "WONDERS [W]", win_w - 530, 0,
-                            150, 40, won_color, CIV_ALIGN_LEFT,
-                            CIV_VALIGN_MIDDLE);
-
-    uint32_t gov_color = show_government ? 0xFFFF00 : 0xAAAAAA;
-    civ_font_render_aligned(renderer, font_hud, "GOVERNMENT [G]", win_w - 380,
-                            0, 150, 40, gov_color, CIV_ALIGN_LEFT,
-                            CIV_VALIGN_MIDDLE);
-
-    uint32_t res_color = show_research ? 0xFFFF00 : 0xAAAAAA;
-    civ_font_render_aligned(renderer, font_hud, "RESEARCH [T]", win_w - 200, 0,
-                            150, 40, res_color, CIV_ALIGN_LEFT,
-                            CIV_VALIGN_MIDDLE);
-
-    /* 3. Render Units */
-    if (game->unit_manager) {
-      for (size_t i = 0; i < game->unit_manager->unit_count; i++) {
-        civ_unit_t *u = &game->unit_manager->units[i];
-        if (u->current_strength <= 0)
-          continue;
-
-        /* Convert tile to screen coords */
-        float screen_x = (float)win_w / 2.0f +
-                         (u->x - map_ctx->view_x) * 64.0f * map_ctx->zoom;
-        float screen_y = (float)win_h / 2.0f +
-                         (u->y - map_ctx->view_y) * 64.0f * map_ctx->zoom;
-        float size = 48.0f * map_ctx->zoom;
-
-        if (screen_x + size < 0 || screen_x - size > win_w ||
-            screen_y + size < 0 || screen_y - size > win_h)
-          continue;
-
-        /* Selection highlight */
-        if (selected_unit == u) {
-          civ_render_rect_filled_alpha(renderer, (int)(screen_x - size / 2 - 4),
-                                       (int)(screen_y - size / 2 - 4),
-                                       (int)size + 8, (int)size + 8, 0x00A0FF,
-                                       180);
-        }
-
-        /* Unit box */
-        uint32_t color = u->has_moved ? 0x555555 : 0xFF2200;
-        if (u->unit_type == CIV_UNIT_TYPE_SETTLER)
-          color = 0x00FFCC;
-
-        civ_render_rect_filled(renderer, (int)(screen_x - size / 2),
-                               (int)(screen_y - size / 2), (int)size, (int)size,
-                               color);
-        civ_render_rect_outline(renderer, (int)(screen_x - size / 2),
-                                (int)(screen_y - size / 2), (int)size,
-                                (int)size, 0xFFFFFF, 1);
-      }
-    }
-
-    /* 3.1. Render Settlement Labels */
-    if (game->settlement_manager) {
-      for (size_t i = 0; i < game->settlement_manager->settlement_count; i++) {
-        civ_settlement_t *s = &game->settlement_manager->settlements[i];
-
-        float screen_x = (float)win_w / 2.0f +
-                         (s->x - map_ctx->view_x) * 64.0f * map_ctx->zoom;
-        float screen_y = (float)win_h / 2.0f +
-                         (s->y - map_ctx->view_y) * 64.0f * map_ctx->zoom;
-
-        if (screen_x < 0 || screen_x > win_w || screen_y < 0 ||
-            screen_y > win_h)
-          continue;
-
-        /* Draw selection highlight for settlement */
-        if (selected_settlement == s) {
-          float size = 52.0f * map_ctx->zoom;
-          civ_render_rect_outline(renderer, (int)(screen_x - size / 2),
-                                  (int)(screen_y - size / 2), (int)size,
-                                  (int)size, 0xFFFF00, 2);
-        }
-
-        char label[64];
-        sprintf(label, "%s (Pop: %lld)", s->name, s->population);
-        civ_font_render_aligned(renderer, font_hud, label, (int)screen_x - 100,
-                                (int)screen_y + 30, 200, 20, 0xFFFFFF,
-                                CIV_ALIGN_CENTER, CIV_VALIGN_TOP);
-      }
-    }
-
-    /* 4. "Next Turn" Button */
-    int btn_w = 180;
-    int btn_h = 50;
-    int btn_x = win_w - btn_w - 20;
-    int btn_y = win_h - btn_h - 20;
-
-    bool hovered =
-        (input->mouse_x >= btn_x && input->mouse_x <= btn_x + btn_w &&
-         input->mouse_y >= btn_y && input->mouse_y <= btn_y + btn_h);
-
-    civ_render_rect_filled_alpha(renderer, btn_x, btn_y, btn_w, btn_h,
-                                 hovered ? 0x2A3A4A : 0x1A2A3A, 240);
-    civ_render_rect_outline(renderer, btn_x, btn_y, btn_w, btn_h, 0x00A0FF, 1);
-
-    char turn_buf[32];
-    sprintf(turn_buf, "TURN: %d | END", game->current_turn);
-    civ_font_render_aligned(renderer, font_hud, turn_buf, btn_x, btn_y, btn_w,
-                            btn_h, 0xFFFFFF, CIV_ALIGN_CENTER,
-                            CIV_VALIGN_MIDDLE);
-
-    /* 5. Minimap (Bottom-Left) */
-    int mm_w = 200;
-    int mm_h = 150;
-    int mm_x = 20;
-    int mm_y = win_h - mm_h - 20;
-    civ_render_minimap(renderer, mm_x, mm_y, mm_w, mm_h, game->world_map,
-                       map_ctx);
-
-    /* 6. Unit Sidebar (Left) */
-    if (selected_unit) {
-      int sb_w = 280;
-      int sb_h = 320;
-      int sb_x = 20;
-      int sb_y = 60;
-
-      civ_render_rect_filled_alpha(renderer, sb_x, sb_y, sb_w, sb_h, 0x050A14,
-                                   230);
-      civ_render_rect_outline(renderer, sb_x, sb_y, sb_w, sb_h, 0x00A0FF, 1);
-      civ_render_line(renderer, sb_x, sb_y + 40, sb_x + sb_w, sb_y + 40,
-                      0x1A2A3A);
-
-      char name_lvl[128];
-      sprintf(name_lvl, "%s [LVL %d]", selected_unit->name,
-              selected_unit->level);
-      civ_font_render_aligned(renderer, font_hud, name_lvl, sb_x + 15, sb_y,
-                              sb_w - 30, 40, 0xFFFFFF, CIV_ALIGN_LEFT,
-                              CIV_VALIGN_MIDDLE);
-
-      char stat_buf[128];
-      int curr_y = sb_y + 55;
-
-      sprintf(stat_buf, "TYPE: %s",
-              (selected_unit->unit_type == CIV_UNIT_TYPE_INFANTRY
-                   ? "Infantry"
-                   : (selected_unit->unit_type == CIV_UNIT_TYPE_SETTLER
-                          ? "Settler"
-                          : "Military")));
-      civ_font_render_aligned(renderer, font_hud, stat_buf, sb_x + 15, curr_y,
-                              sb_w - 30, 25, 0xCCCCCC, CIV_ALIGN_LEFT,
-                              CIV_VALIGN_TOP);
-      curr_y += 30;
-
-      sprintf(stat_buf, "STRENGTH: %d / %d", selected_unit->current_strength,
-              selected_unit->max_strength);
-      civ_font_render_aligned(renderer, font_hud, stat_buf, sb_x + 15, curr_y,
-                              sb_w - 30, 25, 0xCCCCCC, CIV_ALIGN_LEFT,
-                              CIV_VALIGN_TOP);
-      curr_y += 30;
-
-      sprintf(stat_buf, "MORALE: %.0f%%", selected_unit->morale * 100.0f);
-      civ_font_render_aligned(renderer, font_hud, stat_buf, sb_x + 15, curr_y,
-                              sb_w - 30, 25, 0xCCCCCC, CIV_ALIGN_LEFT,
-                              CIV_VALIGN_TOP);
-      curr_y += 30;
-
-      sprintf(stat_buf, "POS: (%d, %d)", selected_unit->x, selected_unit->y);
-      civ_font_render_aligned(renderer, font_hud, stat_buf, sb_x + 15, curr_y,
-                              sb_w - 30, 25, 0xCCCCCC, CIV_ALIGN_LEFT,
-                              CIV_VALIGN_TOP);
-      curr_y += 40;
-
-      /* Movement Status */
-      if (selected_unit->has_moved) {
-        civ_font_render_aligned(renderer, font_hud, "MOVEMENT EXHAUSTED",
-                                sb_x + 15, curr_y, sb_w - 30, 25, 0xFF4444,
-                                CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
-      } else {
-        civ_font_render_aligned(renderer, font_hud, "READY TO MOVE", sb_x + 15,
-                                curr_y, sb_w - 30, 25, 0x44FF44, CIV_ALIGN_LEFT,
-                                CIV_VALIGN_TOP);
-      }
-      curr_y += 35;
-
-      /* XP Bar */
-      civ_font_render_aligned(renderer, font_hud, "EXPERIENCE", sb_x + 15,
-                              curr_y, sb_w - 30, 20, 0xAAAAAA, CIV_ALIGN_LEFT,
-                              CIV_VALIGN_TOP);
-      curr_y += 20;
-
-      float xp_perc = selected_unit->experience / selected_unit->next_level_xp;
-      civ_render_rect_filled(renderer, sb_x + 15, curr_y, sb_w - 30, 10,
-                             0x1A2A3A);
-      civ_render_rect_filled(renderer, sb_x + 15, curr_y,
-                             (int)((sb_w - 30) * xp_perc), 10, 0xFFCC00);
-      curr_y += 20;
-
-      /* FOUND CITY BUTTON for Settlers */
-      if (selected_unit->unit_type == CIV_UNIT_TYPE_SETTLER &&
-          !selected_unit->has_moved) {
-        int f_btn_x = sb_x + 15;
-        int f_btn_y = sb_y + 250;
-        int f_btn_w = sb_w - 30;
-        int f_btn_h = 40;
-
-        bool f_hov =
-            (input->mouse_x >= f_btn_x && input->mouse_x <= f_btn_x + f_btn_w &&
-             input->mouse_y >= f_btn_y && input->mouse_y <= f_btn_y + f_btn_h);
-
-        civ_render_rect_filled(renderer, f_btn_x, f_btn_y, f_btn_w, f_btn_h,
-                               f_hov ? 0x00A0FF : 0x005A99);
-        civ_font_render_aligned(renderer, font_hud, "FOUND CITY", f_btn_x,
-                                f_btn_y, f_btn_w, f_btn_h, 0xFFFFFF,
-                                CIV_ALIGN_CENTER, CIV_VALIGN_MIDDLE);
-      }
-
-      /* Close hint */
-      civ_font_render_aligned(renderer, font_hud, "(Click map to deselect)",
-                              sb_x + 15, sb_y + sb_h - 25, sb_w - 30, 20,
-                              0x666666, CIV_ALIGN_CENTER, CIV_VALIGN_BOTTOM);
-    }
-
-    /* 7. Settlement Sidebar (Left) */
-    if (selected_settlement) {
-      int ssb_w = 280;
-      int ssb_h = 320;
-      int ssb_x = 20;
-      int ssb_y = 60;
-
-      civ_render_rect_filled_alpha(renderer, ssb_x, ssb_y, ssb_w, ssb_h,
-                                   0x0A0F1E, 240);
-      civ_render_rect_outline(renderer, ssb_x, ssb_y, ssb_w, ssb_h, 0xFFFF00,
-                              1);
-      civ_render_line(renderer, ssb_x, ssb_y + 40, ssb_x + ssb_w, ssb_y + 40,
-                      0x1A2A3A);
-
-      civ_font_render_aligned(renderer, font_hud, selected_settlement->name,
-                              ssb_x + 15, ssb_y, ssb_w - 30, 40, 0xFFFF00,
-                              CIV_ALIGN_LEFT, CIV_VALIGN_MIDDLE);
-
-      char stat_buf[128];
-      int curr_y = ssb_y + 55;
-
-      const char *tier_names[] = {"Hamlet", "Village",    "Town",
-                                  "City",   "Metropolis", "Capital"};
-      sprintf(stat_buf, "TIER: %s", tier_names[selected_settlement->tier]);
-      civ_font_render_aligned(renderer, font_hud, stat_buf, ssb_x + 15, curr_y,
-                              ssb_w - 30, 30, 0xFFFFFF, CIV_ALIGN_LEFT,
-                              CIV_VALIGN_TOP);
-      curr_y += 25;
-
-      sprintf(stat_buf, "POPULATION: %lld", selected_settlement->population);
-      civ_font_render_aligned(renderer, font_hud, stat_buf, ssb_x + 15, curr_y,
-                              ssb_w - 30, 30, 0xFFFFFF, CIV_ALIGN_LEFT,
-                              CIV_VALIGN_TOP);
-      curr_y += 25;
-
-      sprintf(stat_buf, "ATTRACTIVENESS: %.2f",
-              selected_settlement->attractiveness);
-      civ_font_render_aligned(renderer, font_hud, stat_buf, ssb_x + 15, curr_y,
-                              ssb_w - 30, 30, 0xFFFFFF, CIV_ALIGN_LEFT,
-                              CIV_VALIGN_TOP);
-      curr_y += 25;
-
-      /* Phase 9: Loyalty & Unrest */
-      civ_font_render_aligned(renderer, font_hud, "LOYALTY", ssb_x + 15, curr_y,
-                              ssb_w - 30, 15, 0xAAAAAA, CIV_ALIGN_LEFT,
-                              CIV_VALIGN_TOP);
-      uint32_t loyalty_color =
-          (selected_settlement->loyalty > 0.4f) ? 0x00FF88 : 0xFF3300;
-      civ_render_rect_filled(renderer, ssb_x + 15, curr_y + 18,
-                             (int)((ssb_w - 30) * selected_settlement->loyalty),
-                             6, loyalty_color);
-      civ_render_rect_outline(renderer, ssb_x + 15, curr_y + 18, ssb_w - 30, 6,
-                              0x444444, 1);
-      curr_y += 35;
-
-      civ_font_render_aligned(renderer, font_hud, "UNREST", ssb_x + 15, curr_y,
-                              ssb_w - 30, 15, 0xAAAAAA, CIV_ALIGN_LEFT,
-                              CIV_VALIGN_TOP);
-      civ_render_rect_filled(renderer, ssb_x + 15, curr_y + 18,
-                             (int)((ssb_w - 30) * selected_settlement->unrest),
-                             6, 0xFF6600);
-      civ_render_rect_outline(renderer, ssb_x + 15, curr_y + 18, ssb_w - 30, 6,
-                              0x444444, 1);
-      curr_y += 35;
-
-      /* Culture Stats */
-      sprintf(stat_buf, "CULTURE: %.1f (+%.1f/YR)",
-              selected_settlement->accumulated_culture,
-              selected_settlement->culture_yield);
-      civ_font_render_aligned(renderer, font_hud, stat_buf, ssb_x + 15, curr_y,
-                              ssb_w - 30, 30, 0x00FFCC, CIV_ALIGN_LEFT,
-                              CIV_VALIGN_TOP);
-      curr_y += 25;
-
-      float next_threshold = 0;
-      if (selected_settlement->territory_radius == 2)
-        next_threshold = 20.0f;
-      else if (selected_settlement->territory_radius == 3)
-        next_threshold = 100.0f;
-      else if (selected_settlement->territory_radius == 4)
-        next_threshold = 500.0f;
-
-      if (next_threshold > 0) {
-        sprintf(stat_buf, "EXPANSION: %.0f%%",
-                (selected_settlement->accumulated_culture / next_threshold) *
-                    100.0f);
-        civ_font_render_aligned(renderer, font_hud, stat_buf, ssb_x + 15,
-                                curr_y, ssb_w - 30, 30, 0x00FFCC,
-                                CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
-      }
-      curr_y += 35;
-
-      /* Recruitment Section */
-      civ_render_line(renderer, ssb_x + 10, curr_y, ssb_x + ssb_w - 10, curr_y,
-                      0x336644);
-      curr_y += 10;
-      civ_font_render_aligned(renderer, font_hud, "RECRUIT UNITS", ssb_x + 15,
-                              curr_y, ssb_w - 30, 20, 0x00FF88, CIV_ALIGN_LEFT,
-                              CIV_VALIGN_TOP);
-      curr_y += 25;
-
-      if (selected_settlement->is_producing) {
-        float perc = selected_settlement->production_progress /
-                     selected_settlement->production_target;
-        civ_render_rect_filled(renderer, ssb_x + 15, curr_y, ssb_w - 30, 25,
-                               0x1A2A1A);
-        civ_render_rect_filled(renderer, ssb_x + 15, curr_y,
-                               (int)((ssb_w - 30) * perc), 25, 0x00A0FF);
-        char prod_buf[64];
-        sprintf(prod_buf, "TRAINING... %d%%", (int)(perc * 100));
-        civ_font_render_aligned(renderer, font_hud, prod_buf, ssb_x + 15,
-                                curr_y, ssb_w - 30, 25, 0xFFFFFF,
-                                CIV_ALIGN_CENTER, CIV_VALIGN_MIDDLE);
-      } else {
-        /* Option: Infantry */
-        bool h_inf =
-            (input->mouse_x >= ssb_x + 10 &&
-             input->mouse_x <= ssb_x + ssb_w - 10 && input->mouse_y >= curr_y &&
-             input->mouse_y <= curr_y + 40);
-        civ_render_rect_filled(renderer, ssb_x + 10, curr_y, ssb_w - 20, 40,
-                               h_inf ? 0x2A3A2A : 0x1A2A1A);
-        civ_font_render_aligned(renderer, font_hud, "RECRUIT INFANTRY (30)",
-                                ssb_x + 15, curr_y, ssb_w - 30, 40, 0xFFFFFF,
-                                CIV_ALIGN_LEFT, CIV_VALIGN_MIDDLE);
-        curr_y += 50;
-
-        /* Option: Settler */
-        if (selected_settlement->population > 500) {
-          bool h_set =
-              (input->mouse_x >= ssb_x + 10 &&
-               input->mouse_x <= ssb_x + ssb_w - 10 &&
-               input->mouse_y >= curr_y && input->mouse_y <= curr_y + 40);
-          civ_render_rect_filled(renderer, ssb_x + 10, curr_y, ssb_w - 20, 40,
-                                 h_set ? 0x2A3A2A : 0x1A2A1A);
-          civ_font_render_aligned(renderer, font_hud, "RECRUIT SETTLER (80)",
-                                  ssb_x + 15, curr_y, ssb_w - 30, 40, 0xFFFFFF,
-                                  CIV_ALIGN_LEFT, CIV_VALIGN_MIDDLE);
-        } else {
-          civ_font_render_aligned(renderer, font_hud, "SETTLER (Needs 500 Pop)",
-                                  ssb_x + 15, curr_y, ssb_w - 30, 40, 0x666666,
-                                  CIV_ALIGN_LEFT, CIV_VALIGN_MIDDLE);
-        }
-      }
-    }
-
-    /* 8. Diplomacy Panel (Left) */
-    if (!selected_unit && !selected_settlement && show_diplomacy) {
-      int dsb_w = 280;
-      int dsb_h = 450;
-      int dsb_x = 20;
-      int dsb_y = 60;
-
-      civ_render_rect_filled_alpha(renderer, dsb_x, dsb_y, dsb_w, dsb_h,
-                                   0x140505, 240);
-      civ_render_rect_outline(renderer, dsb_x, dsb_y, dsb_w, dsb_h, 0xFFFF00,
-                              1);
-      civ_render_line(renderer, dsb_x, dsb_y + 40, dsb_x + dsb_w, dsb_y + 40,
-                      0x3A1A1A);
-
-      civ_font_render_aligned(renderer, font_hud, "DIPLOMACY & RELATIONS",
-                              dsb_x + 15, dsb_y, dsb_w - 30, 40, 0xFFFF00,
-                              CIV_ALIGN_LEFT, CIV_VALIGN_MIDDLE);
-
-      int curr_y = dsb_y + 55;
-      if (has_contacted_rival) {
-        civ_diplomatic_relation_t *rel = civ_diplomacy_system_get_relation(
-            game->diplomacy_system, "player", "rival_kingdom");
-
-        civ_font_render_aligned(renderer, font_hud, "RIVAL KINGDOM", dsb_x + 15,
-                                curr_y, dsb_w - 30, 30, 0xFFFFFF,
-                                CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
-        curr_y += 25;
-
-        if (rel) {
-          char status_buf[64];
-          const char *lvl_str = "Neutral";
-          if (rel->relation_level == CIV_RELATION_LEVEL_WAR)
-            lvl_str = "WAR";
-          else if (rel->relation_level == CIV_RELATION_LEVEL_HOSTILE)
-            lvl_str = "Hostile";
-          else if (rel->relation_level == CIV_RELATION_LEVEL_FRIENDLY)
-            lvl_str = "Friendly";
-          else if (rel->relation_level == CIV_RELATION_LEVEL_ALLIED)
-            lvl_str = "Allied";
-
-          sprintf(status_buf, "STATUS: %s (Opinion: %.0f)", lvl_str,
-                  rel->opinion_score);
-          civ_font_render_aligned(renderer, font_hud, status_buf, dsb_x + 15,
-                                  curr_y, dsb_w - 30, 30, 0xAAAAAA,
-                                  CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
-          curr_y += 25;
-
-          const char *stance_str = "Neutral";
-          uint32_t stance_color = 0xAAAAAA;
-          if (rel->current_stance == CIV_STANCE_HOSTILE) {
-            stance_str = "HOSTILE";
-            stance_color = 0xFF4444;
-          } else if (rel->current_stance == CIV_STANCE_WARY) {
-            stance_str = "WARY";
-            stance_color = 0xFFCC00;
-          } else if (rel->current_stance == CIV_STANCE_FRIENDLY) {
-            stance_str = "FRIENDLY";
-            stance_color = 0x44FF44;
-          }
-
-          sprintf(status_buf, "STANCE: %s", stance_str);
-          civ_font_render_aligned(renderer, font_hud, status_buf, dsb_x + 15,
-                                  curr_y, dsb_w - 30, 30, stance_color,
-                                  CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
-          curr_y += 25;
-
-          const char *p_str = "Balanced";
-          if (rel->personality == CIV_PERSONALITY_AGGRESSIVE)
-            p_str = "Aggressive";
-          else if (rel->personality == CIV_PERSONALITY_EXPANSIONIST)
-            p_str = "Expansionist";
-          else if (rel->personality == CIV_PERSONALITY_MERCANTILE)
-            p_str = "Mercantile";
-
-          sprintf(status_buf, "PERSONALITY: %s", p_str);
-          civ_font_render_aligned(renderer, font_hud, status_buf, dsb_x + 15,
-                                  curr_y, dsb_w - 30, 30, 0x00FFCC,
-                                  CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
-        }
-        curr_y += 35;
-
-        /* Propose Trade Action */
-        bool h_trade =
-            (input->mouse_x >= dsb_x + 10 &&
-             input->mouse_x <= dsb_x + dsb_w - 10 && input->mouse_y >= curr_y &&
-             input->mouse_y <= curr_y + 40);
-        civ_render_rect_filled(renderer, dsb_x + 10, curr_y, dsb_w - 20, 40,
-                               h_trade ? 0x2A3A4A : 0x1A2A3A);
-        civ_font_render_aligned(renderer, font_hud, "PROPOSE TRADE AGREEMENT",
-                                dsb_x + 10, curr_y, dsb_w - 20, 40, 0xFFFFFF,
-                                CIV_ALIGN_CENTER, CIV_VALIGN_MIDDLE);
-        curr_y += 50;
-
-        /* Propose Non-Aggression Action */
-        bool h_nap =
-            (input->mouse_x >= dsb_x + 10 &&
-             input->mouse_x <= dsb_x + dsb_w - 10 && input->mouse_y >= curr_y &&
-             input->mouse_y <= curr_y + 40);
-        civ_render_rect_filled(renderer, dsb_x + 10, curr_y, dsb_w - 20, 40,
-                               h_nap ? 0x2A3A4A : 0x1A2A3A);
-        civ_font_render_aligned(renderer, font_hud, "NON-AGGRESSION PACT",
-                                dsb_x + 10, curr_y, dsb_w - 20, 40, 0xFFFFFF,
-                                CIV_ALIGN_CENTER, CIV_VALIGN_MIDDLE);
-        curr_y += 50;
-
-        /* Declare War Action */
-        bool h_war =
-            (input->mouse_x >= dsb_x + 10 &&
-             input->mouse_x <= dsb_x + dsb_w - 10 && input->mouse_y >= curr_y &&
-             input->mouse_y <= curr_y + 40);
-        civ_render_rect_filled(renderer, dsb_x + 10, curr_y, dsb_w - 20, 40,
-                               h_war ? 0x660000 : 0x440000);
-        civ_font_render_aligned(renderer, font_hud, "DECLARE WAR", dsb_x + 10,
-                                curr_y, dsb_w - 20, 40, 0xFFFFFF,
-                                CIV_ALIGN_CENTER, CIV_VALIGN_MIDDLE);
-      } else {
-        civ_font_render_aligned(renderer, font_hud, "NO NATIONS DISCOVERED",
-                                dsb_x + 15, curr_y, dsb_w - 30, 30, 0x666666,
-                                CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
-      }
-    }
-
-    /* 9. Research Panel (Centered Overlay) */
-    if (show_research && game->technology_tree) {
-      int win_w = last_win_w;
-      int win_h = last_win_h;
-      int rpb_w = 600;
-      int rpb_h = 500;
-      int rpb_x = (win_w - rpb_w) / 2;
-      int rpb_y = (win_h - rpb_h) / 2;
-
-      civ_render_rect_filled_alpha(renderer, rpb_x, rpb_y, rpb_w, rpb_h,
-                                   0x0A0F1A, 250);
-      civ_render_rect_outline(renderer, rpb_x, rpb_y, rpb_w, rpb_h, 0x00A0FF,
-                              2);
-      civ_render_line(renderer, rpb_x, rpb_y + 50, rpb_x + rpb_w, rpb_y + 50,
-                      0x1A2A3A);
-
-      civ_font_render_aligned(
-          renderer, font_hud, "TECHNOLOGY & INNOVATION TREE", rpb_x + 20, rpb_y,
-          rpb_w - 40, 50, 0xFFFFFF, CIV_ALIGN_CENTER, CIV_VALIGN_MIDDLE);
-
+    /* ── Screen content ── */
+    if (current_screen == SCR_TECHNOLOGY && game->technology_tree) {
       civ_innovation_system_t *is = game->technology_tree;
-      int curr_y = rpb_y + 70;
-      int tech_box_h = 60;
-
-      for (size_t i = 0; i < is->tech_count; i++) {
-        civ_technology_node_t *t = &is->technologies[i];
-
-        uint32_t bg_color = 0x1A2A3A;
-        bool is_current =
-            is->current_research && strcmp(is->current_research, t->id) == 0;
-
-        if (t->researched)
-          bg_color = 0x004422;
-        else if (is_current)
-          bg_color = 0x0055AA;
-
-        /* Hover check for visual feedback */
-        bool is_hover =
-            (input->mouse_x >= rpb_x + 20 &&
-             input->mouse_x <= rpb_x + rpb_w - 20 && input->mouse_y >= curr_y &&
-             input->mouse_y <= curr_y + tech_box_h);
-        if (is_hover)
-          bg_color += 0x111111;
-
-        civ_render_rect_filled(renderer, rpb_x + 20, curr_y, rpb_w - 40,
-                               tech_box_h, bg_color);
-        civ_render_rect_outline(renderer, rpb_x + 20, curr_y, rpb_w - 40,
-                                tech_box_h, 0x00A0FF, 1);
-
-        civ_font_render_aligned(renderer, font_hud, t->name, rpb_x + 40,
-                                curr_y + 10, rpb_w - 80, 20, 0xFFFFFF,
-                                CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
-
-        if (t->researched) {
-          civ_font_render_aligned(renderer, font_hud, "COMPLETED", rpb_x + 40,
-                                  curr_y + 30, rpb_w - 80, 20, 0x00FF88,
-                                  CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
-        } else if (is_current) {
-          float perc = (t->progress / t->base_research_cost);
-          civ_render_rect_filled(renderer, rpb_x + 40, curr_y + 40,
-                                 (int)((rpb_w - 80) * perc), 6, 0x00FF00);
-          civ_font_render_aligned(renderer, font_hud, "CURRENTLY RESEARCHING",
-                                  rpb_x + 40, curr_y + 25, rpb_w - 80, 20,
-                                  0x00A0FF, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
-        } else {
-          char cost_buf[64];
-          sprintf(cost_buf, "COST: %.1f SCIENCE", t->base_research_cost);
-          civ_font_render_aligned(renderer, font_hud, cost_buf, rpb_x + 40,
-                                  curr_y + 30, rpb_w - 80, 20, 0xCCCCCC,
-                                  CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
-        }
-
-        curr_y += tech_box_h + 15;
+      int dy = cy;
+      for (int d = 0; d < CIV_TECH_DOMAIN_COUNT; d++) {
+        char buf[128];
+        snprintf(buf, sizeof(buf), "%-34s %+d (+%.1f/t)",
+                 is->domains[d].name, is->domains[d].index,
+                 is->domains[d].growth_rate);
+        uint32_t tc = is->domains[d].index > 200 ? 0x44FF44 :
+                       is->domains[d].index > 0 ? 0xAACCAA : 0xFF6644;
+        civ_font_render_aligned(renderer, font_hud, buf, cx, dy,
+                                cw, 20, tc, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
+        dy += 24;
       }
+    } else if (current_screen == SCR_GOVERNANCE) {
+      /* Show selected nation's government if one is selected, else player's */
+      civ_government_t *gov = NULL;
+      const char *gov_title = "YOUR GOVERNMENT";
+      if (selected_nation_cid >= 0 && game->nation_manager) {
+        civ_nation_t *nat = civ_nation_get_by_id(
+            (civ_nation_manager_t *)game->nation_manager, selected_nation_id);
+        if (nat && nat->government) {
+          gov = nat->government;
+          gov_title = nat->name;
+        }
+      }
+      if (!gov) gov = game->government;
 
-      /* Help text */
-      civ_font_render_aligned(renderer, font_hud, "[ESC/G TO CLOSE]", win_w / 2,
-                              rpb_y + rpb_h - 40, 200, 30, 0x888888,
+      int dy = cy;
+      char buf[256];
+      snprintf(buf, sizeof(buf), "%s — %s", gov_title,
+               civ_government_proximity_label(gov));
+      civ_font_render_aligned(renderer, font_hud, buf, cx, dy,
+                              cw, 24, 0x00A0FF, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
+      dy += 32;
+      snprintf(buf, sizeof(buf), "Stability: %.0f%%  Legitimacy: %.0f%%  Efficiency: %.0f%%  Happiness: %.0f%%",
+               gov->stability*100, gov->legitimacy*100, gov->efficiency*100,
+               gov->profile.citizen_happiness*100);
+      civ_font_render_aligned(renderer, font_hud, buf, cx, dy,
+                              cw, 18, 0xCCCCCC, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
+      dy += 28;
+      snprintf(buf, sizeof(buf), "Auth: %.0f%%  Rep: %.0f%%  Rigidity: %.0f%%  Balance: %.0f%%  Ranking: %.0f",
+               gov->profile.authority_concentration*100,
+               gov->profile.representation_index*100,
+               gov->profile.institutional_rigidity*100,
+               gov->profile.power_balance*100,
+               gov->profile.governance_ranking);
+      civ_font_render_aligned(renderer, font_hud, buf, cx, dy,
+                              cw, 16, 0x8899AA, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
+      dy += 30;
+
+      civ_render_line(renderer, cx, dy, cx + cw, dy, 0x1A2A3A);
+      dy += 8;
+      civ_font_render_aligned(renderer, font_hud, "POLITICAL POSITIONS",
+                              cx, dy, 200, 20, 0xFFCC00, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
+      dy += 26;
+      for (size_t i = 0; i < gov->position_count && dy < sy + sh - 20; i++) {
+        int indent = gov->positions[i].hierarchy_level * 18;
+        snprintf(buf, sizeof(buf), "%s", gov->positions[i].title);
+        civ_font_render_aligned(renderer, font_hud, buf, cx + indent, dy,
+                                cw - indent, 18, 0xCCCCCC, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
+        dy += 18;
+        snprintf(buf, sizeof(buf), "%s · %s · %d seat%s",
+                 gov->positions[i].selection_method, gov->positions[i].term,
+                 gov->positions[i].position_count,
+                 gov->positions[i].position_count > 1 ? "s" : "");
+        civ_font_render_aligned(renderer, font_hud, buf, cx + indent + 12, dy,
+                                cw - indent - 12, 14, 0x667788, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
+        dy += 22;
+      }
+    } else if (current_screen == SCR_ECONOMY) {
+      int dy = cy;
+      const char *sectors[] = {"Agriculture","Extraction","Manufacturing",
+                               "Services","Finance","Trade","Research","Governance"};
+      civ_font_render_aligned(renderer, font_hud, "Economic Sector Distribution",
+                              cx, dy, cw, 22, 0xFFCC00, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
+      dy += 30;
+      for (int s = 0; s < 8; s++) {
+        float val = 1.0f/8.0f;
+        civ_font_render_aligned(renderer, font_hud, sectors[s], cx, dy,
+                                150, 20, 0xCCCCCC, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
+        civ_render_rect_filled(renderer, cx + 160, dy + 4, 300, 12, 0x1A2A3A);
+        civ_render_rect_filled(renderer, cx + 160, dy + 4, (int)(300*val), 12,
+                               g_graph_palette_default[s % 12]);
+        dy += 28;
+      }
+    } else if (current_screen == SCR_NEWS) {
+      int dy = cy;
+      civ_font_render_aligned(renderer, font_hud, "GLOBAL NEWS FEED",
+                              cx, dy, cw, 24, 0xFFCC00, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
+      dy += 32;
+
+      if (game->npc_engine) {
+        civ_npc_engine_t *ne = (civ_npc_engine_t *)game->npc_engine;
+        civ_decision_t decisions[12];
+        int nd = civ_npc_engine_get_recent(ne, 12, decisions);
+
+        for (int i = 0; i < nd && dy < sy + sh - 20; i++) {
+          civ_decision_t *d = &decisions[i];
+          char buf[256];
+          const char *cats[] = {"[MIL]","[ECO]","[POL]","[SOC]","[DIP]"};
+          snprintf(buf, sizeof(buf), "%s %s", cats[d->category % 5], d->description);
+          civ_font_render_aligned(renderer, font_hud, buf, cx, dy,
+                                  cw, 18, 0xCCCCCC, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
+          dy += 18;
+          snprintf(buf, sizeof(buf), "  %s — Year %d, Day %d | Stab %+.2f Eco %+.2f Dip %+.2f",
+                   d->nation_id, d->global_year, d->global_day,
+                   d->stability_effect, d->economic_effect, d->diplomatic_effect);
+          civ_font_render_aligned(renderer, font_hud, buf, cx+12, dy,
+                                  cw-12, 14, 0x556677, CIV_ALIGN_LEFT, CIV_VALIGN_TOP);
+          dy += 20;
+        }
+        if (nd == 0) {
+          civ_font_render_aligned(renderer, font_hud, "No news yet — the world is quiet.",
+                                  cx, dy, cw, 24, 0x556677, CIV_ALIGN_CENTER, CIV_VALIGN_TOP);
+        }
+      }
+    } else {
+      civ_font_render_aligned(renderer, font_hud, "Screen under development",
+                              cx, cy + 60, cw, 30, 0x556677,
                               CIV_ALIGN_CENTER, CIV_VALIGN_MIDDLE);
     }
-
-    if (show_government && game->government) {
-      render_governance_panel(renderer, game->government);
-    }
-
-    if (show_wonders) {
-      render_wonders_panel(renderer, game->wonder_manager);
-    }
-
-    if (show_rulebook && game->government) {
-      render_rulebook_editor(renderer, game->government);
-    }
-
-    /* Presentation is handled by the main loop */
   }
+
+  /* ── Layer 4-5: Settlements + Units ─────── */
+  /* ── Layer 7: HUD top bar ─────────────── */
+  render_hud_top(renderer, game);
+
+  /* ── Layer 8: HUD buttons ─────────────── */
+  render_hud_buttons(renderer, input);
+
+  /* ── Layer 9: Sidebar navigation — full height left panel ─────── */
+  {
+    int sb_w = 220, sb_x = 0, sb_y = 0;
+    /* Full-height background — top bar renders over it */
+    civ_render_rect_filled_alpha(renderer, sb_x, sb_y, sb_w, win_h,
+                                 0x080C18, 250);
+    civ_render_line(renderer, sb_w, 0, sb_w, win_h, 0x1A2A3A);
+
+    int cy = 44; /* below top bar */
+    /* Nav title */
+    civ_font_render_aligned(renderer, font_hud, "DOMINION", sb_x + 8, cy,
+                            sb_w - 16, 22, CIV_COLOR_PRIMARY,
+                            CIV_ALIGN_LEFT, CIV_VALIGN_MIDDLE);
+    cy += 28;
+
+    /* Nav items */
+    const char *nav_labels[] = {"Map", "Diplomacy", "Economy", "Military",
+                                "Technology", "Governance", "Culture", "News"};
+    char nav_keys[] = {'M','D','E','L','T','G','C','N'};
+    civ_screen_t nav_screens[] = {SCR_MAP, SCR_DIPLOMACY, SCR_ECONOMY,
+                                  SCR_MILITARY, SCR_TECHNOLOGY,
+                                  SCR_GOVERNANCE, SCR_CULTURE, SCR_NEWS};
+    int nav_n = 8, nav_h = 28;
+
+    for (int i = 0; i < nav_n; i++) {
+      bool active = (current_screen == nav_screens[i]);
+      bool hov = civ_input_is_mouse_over(input, sb_x + 4, cy, sb_w - 8, nav_h);
+      uint32_t bg = active ? 0x003A5A : (hov ? 0x162033 : 0x080C18);
+      civ_render_rect_filled_alpha(renderer, sb_x + 4, cy, sb_w - 8, nav_h,
+                                   bg, active ? 240 : (hov ? 200 : 0));
+      if (active)
+        civ_render_rect_filled(renderer, sb_x + 4, cy, 3, nav_h, CIV_COLOR_PRIMARY);
+
+      char key[2] = {nav_keys[i], 0};
+      uint32_t kc = active ? 0xFFFFFF : CIV_COLOR_PRIMARY;
+      civ_font_render_aligned(renderer, font_hud, key, sb_x + 14, cy,
+                              24, nav_h, kc, CIV_ALIGN_LEFT, CIV_VALIGN_MIDDLE);
+      uint32_t tc = active ? 0xFFFFFF : 0xAABBCC;
+      civ_font_render_aligned(renderer, font_hud, nav_labels[i], sb_x + 38, cy,
+                              sb_w - 46, nav_h, tc, CIV_ALIGN_LEFT, CIV_VALIGN_MIDDLE);
+      if (input->mouse_left_pressed && hov) current_screen = nav_screens[i];
+      cy += nav_h + 3;
+    }
+
+    /* Player info at bottom of sidebar */
+    cy = win_h - 110;
+    civ_render_line(renderer, sb_x + 8, cy, sb_w - 8, cy, 0x1A2A3A);
+    cy += 8;
+    if (game->current_profile) {
+      civ_font_render_aligned(renderer, font_hud, game->current_profile->name,
+                              sb_x + 8, cy, sb_w - 16, 18, 0x8899AA,
+                              CIV_ALIGN_LEFT, CIV_VALIGN_MIDDLE);
+    }
+    cy += 22;
+    if (game->player_character) {
+      civ_character_t *pc = (civ_character_t *)game->player_character;
+      char bg_buf[48];
+      snprintf(bg_buf, sizeof(bg_buf), "%s", civ_background_name(pc->background));
+      civ_font_render_aligned(renderer, font_hud, bg_buf,
+                              sb_x + 8, cy, sb_w - 16, 16, 0x667788,
+                              CIV_ALIGN_LEFT, CIV_VALIGN_MIDDLE);
+    }
+  }
+
+  /* ── Layer 12: Time controls ─────────── */
+  render_time_controls(renderer, game, input);
+
+  /* ── Layer 13: Notifications ─────────── */
+  /* TODO: toast notification system */
+
+  /* ── Layer 14: Debug overlay ─────────── */
+  if (debug.enabled)
+    civ_debug_overlay_render(&debug, renderer, win_w);
+
+  /* ESC key closes all panels */
+  if (input->esc_pressed && (show_research || show_government || show_wonders ||
+                              show_rulebook || show_diplomacy))
+    show_research = show_government = show_wonders = show_rulebook =
+        show_diplomacy = false;
 }
 
 static void destroy(void) {
-  if (map_ctx) {
-    civ_render_map_context_destroy(map_ctx);
-    map_ctx = NULL;
-  }
-  if (font_hud) {
-    civ_font_destroy(font_hud);
-    font_hud = NULL;
-  }
+  if (map_ctx) civ_render_map_context_destroy(map_ctx), map_ctx = NULL;
+  if (font_hud) civ_font_destroy(font_hud), font_hud = NULL;
 }
 
 civ_scene_t scene_game = {.init = init,

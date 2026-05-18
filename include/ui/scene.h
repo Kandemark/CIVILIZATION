@@ -20,8 +20,9 @@ enum {
   SCENE_PROFILE_SELECT,
   SCENE_PROFILE_CREATE,
   SCENE_MAIN_MENU,
-  SCENE_SETUP, // World Gen
-  SCENE_SPAWN_SELECT,
+  SCENE_SETUP,          // World preview
+  SCENE_LIFE_ORIGIN,    // Character background & birthplace
+  SCENE_IDENTITY,       // National ID: age, nationality, birthplace
   SCENE_GAME,
   SCENE_GOV,
   SCENE_CITY,

@@ -8,7 +8,8 @@ extern civ_scene_t scene_profile_select;
 extern civ_scene_t scene_profile_create;
 extern civ_scene_t scene_main_menu;
 extern civ_scene_t scene_setup;
-extern civ_scene_t scene_spawn_select;
+extern civ_scene_t scene_life_origin;
+extern civ_scene_t scene_identity;
 extern civ_scene_t scene_game;
 
 static civ_scene_t *scenes[SCENE_COUNT];
@@ -21,7 +22,8 @@ void civ_scene_manager_init(void) {
   scenes[SCENE_PROFILE_CREATE] = &scene_profile_create;
   scenes[SCENE_MAIN_MENU] = &scene_main_menu;
   scenes[SCENE_SETUP] = &scene_setup;
-  scenes[SCENE_SPAWN_SELECT] = &scene_spawn_select;
+  scenes[SCENE_LIFE_ORIGIN] = &scene_life_origin;
+  scenes[SCENE_IDENTITY] = &scene_identity;
   scenes[SCENE_GAME] = &scene_game;
 
   // Other scenes use game scene for now or placeholders

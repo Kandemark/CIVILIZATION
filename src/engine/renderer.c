@@ -180,24 +180,29 @@ void civ_render_map_context_destroy(civ_render_map_context_t *ctx) {
   free(ctx);
 }
 
-/* Helper: Get map tile color (atlas style, political-first) */
+/* Helper: Get map tile color — political map, water is blue, land = country color */
 static uint32_t get_map_color(const civ_map_tile_t *tile) {
-  if (!tile)
-    return 0xFF010204;
+  if (!tile) return 0xFF010204;
+  if (!tile->is_explored) return 0xFF010204;
 
-  if (!tile->is_explored)
-    return 0xFF010204;
+  /* Water is always blue */
+  if (tile->land_use == CIV_LAND_USE_WATER)
+    return tile->is_visible ? 0xFF0B2C4D : 0xFF02060F;
 
-  uint32_t color = (tile->land_use == CIV_LAND_USE_WATER) ? 0xFF0B2C4D : 0xFF4A7A41;
-
-  if (!tile->is_visible) {
-    uint8_t r = ((color >> 16) & 0xFF) / 3;
-    uint8_t g = ((color >> 8) & 0xFF) / 3;
-    uint8_t b = (color & 0xFF) / 3;
-    return 0xFF000000 | (r << 16) | (g << 8) | b;
+  /* Land: use political color if claimed, otherwise neutral gray */
+  if (tile->political_color != 0) {
+    uint32_t c = tile->political_color;
+    if (!tile->is_visible) {
+      uint8_t r = ((c >> 16) & 0xFF) / 3;
+      uint8_t g = ((c >> 8) & 0xFF) / 3;
+      uint8_t b = (c & 0xFF) / 3;
+      return 0xFF000000 | (r << 16) | (g << 8) | b;
+    }
+    return c;
   }
 
-  return color;
+  /* Unclaimed land — neutral */
+  return tile->is_visible ? 0xFF3A3A3A : 0xFF101010;
 }
 
 void civ_render_map(SDL_Renderer *renderer, civ_render_map_context_t *ctx,
