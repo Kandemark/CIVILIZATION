@@ -48,6 +48,9 @@ typedef struct {
   /* Government — fully dynamic, constitution-defined */
   civ_government_t       *government;
 
+  /* Constitution — national rules for all actions */
+  void                   *constitution; /* civ_constitution_t — opaque */
+
   /* Subdivisions (provinces/states/regions) */
   struct {
     char     name[64];
@@ -65,6 +68,8 @@ typedef struct {
 
   /* Population */
   int64_t population;
+  float   cost_of_living;   /* 1.0 = baseline */
+  float   gdp_per_capita;
 } civ_nation_t;
 
 /* ── Nation manager ────────────────────────────────────────────────── */

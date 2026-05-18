@@ -50,14 +50,19 @@ typedef enum {
   CIV_ACT_VIEW_ECONOMY       = 1 << 23,
   CIV_ACT_VIEW_MILITARY      = 1 << 24,
   CIV_ACT_VIEW_GOVERNANCE    = 1 << 25,
+  CIV_ACT_VIEW_DIPLOMACY     = 1 << 26,
 } civ_action_t;
 
 /* ── Nav screen IDs (dynamic, role-dependent) ──────────────────── */
 typedef enum {
   CIV_NAV_DASHBOARD,
   CIV_NAV_WORK,
+  CIV_NAV_FINANCE,
+  CIV_NAV_HOUSING,
+  CIV_NAV_EDUCATION,
   CIV_NAV_NETWORK,
   CIV_NAV_POLITICS,
+  CIV_NAV_HEALTH,
   CIV_NAV_BUDGET,
   CIV_NAV_POLICY,
   CIV_NAV_REPORTS,
@@ -68,8 +73,10 @@ typedef enum {
   CIV_NAV_NEWS,
   CIV_NAV_ECONOMY,
   CIV_NAV_GOVERNANCE,
+  CIV_NAV_CONSTITUTION,
   CIV_NAV_MAP,
   CIV_NAV_DIPLOMACY,
+  CIV_NAV_MILITARY,
   CIV_NAV_COUNT
 } civ_nav_screen_t;
 
@@ -78,7 +85,7 @@ typedef struct {
   char     title[CIV_ROLE_TITLE_MAX];
   char     scope[CIV_ROLE_SCOPE_MAX];     /* what this role oversees */
   uint64_t permitted_actions;             /* bitmask of civ_action_t */
-  int      nav_screens[8];                /* which screens this role sees */
+  int      nav_screens[12];                /* which screens this role sees */
   int      nav_count;
   char     boss_title[CIV_ROLE_TITLE_MAX]; /* who you report to */
   char     department[48];                 /* which department */
@@ -95,7 +102,7 @@ typedef struct {
   float    party_alignment;     /* 0-1, how well you align with party */
   float    public_approval;     /* 0-1 */
   uint64_t permitted_actions;   /* current action set */
-  int      nav_screens[8];      /* current nav */
+  int      nav_screens[12];      /* current nav */
   int      nav_count;
   bool     is_government_role;
 } civ_player_role_t;

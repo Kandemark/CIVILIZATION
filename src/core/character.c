@@ -69,6 +69,18 @@ civ_character_t *civ_character_create(const char *name) {
 
 void civ_character_destroy(civ_character_t *c) { free(c); }
 
+void civ_character_dynamic_title(civ_character_t *c, char *out, size_t size) {
+  if (!c || !out) return;
+  int best_skill = 0, best_val = 0;
+  for (int i = 0; i < CIV_CHAR_SKILL_COUNT; i++)
+    if (c->skills[i] > best_val) { best_val = c->skills[i]; best_skill = i; }
+  const char *wealth = c->personal_wealth > 5000 ? "Wealthy" : c->personal_wealth > 1000 ? "Comfortable" : c->personal_wealth > 100 ? "Working" : "Struggling";
+  const char *inf = c->political_influence > 50 ? "Influential" : c->political_influence > 20 ? "Connected" : "";
+  const char *role_desc = c->political_influence > 30 ? "Political Figure" : civ_skill_name((civ_skill_t)best_skill);
+  if (inf[0]) snprintf(out, size, "%s %s %s", wealth, inf, role_desc);
+  else snprintf(out, size, "%s %s", wealth, role_desc);
+}
+
 void civ_character_apply_background(civ_character_t *c, civ_background_t bg) {
   if (!c || bg >= CIV_BG_COUNT) return;
   c->background = bg;
@@ -80,6 +92,17 @@ void civ_character_apply_background(civ_character_t *c, civ_background_t bg) {
   c->personal_wealth = wealth[bg];
   c->reputation = 10.0f + (float)(bg == CIV_BG_ARISTOCRATIC ? 30 : bg == CIV_BG_MERCHANT ? 15 : 0);
   c->political_influence = (bg == CIV_BG_ARISTOCRATIC || bg == CIV_BG_BUREAUCRATIC) ? 25.0f : 0.0f;
+  /* Initialize deep life state */
+  c->housing_level = (bg == CIV_BG_ARISTOCRATIC) ? 3 : (bg == CIV_BG_NOMADIC) ? 1 : 2;
+  c->housing_cost = (c->housing_level == 3) ? 0 : (c->housing_level == 2) ? 50 : 10;
+  c->education_level = (bg == CIV_BG_ACADEMIC) ? 4 : (bg == CIV_BG_BUREAUCRATIC) ? 3 : 2;
+  c->health = 80.0f + (float)(rand() % 20);
+  c->healthcare_cost = 10.0f;
+  c->savings_balance = c->personal_wealth * 0.5f;
+  c->monthly_salary = (bg == CIV_BG_MERCHANT) ? 200 : (bg == CIV_BG_ARISTOCRATIC) ? 300 : 80;
+  c->monthly_expenses = c->housing_cost + c->healthcare_cost + 20;
+  c->relationship_count = 2 + rand() % 5;
+  c->career_rank = (bg == CIV_BG_ARISTOCRATIC || bg == CIV_BG_MERCHANT) ? 2 : 1;
 }
 
 const char *civ_background_name(civ_background_t bg) {

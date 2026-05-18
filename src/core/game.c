@@ -1,6 +1,7 @@
 #include "../../include/core/game.h"
 #include "../../include/core/ai/ai_system.h"
 #include "../../include/core/character.h"
+#include "../../include/core/market.h"
 #include "../../include/core/npc_engine.h"
 #include "../../include/core/culture/culture.h"
 #include "../../include/core/data/history_db.h"
@@ -18,6 +19,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <time.h>
 
 civ_journal_t *g_journal = NULL;
@@ -169,6 +171,18 @@ civ_result_t civ_game_initialize(civ_game_t *game,
     }
   }
 
+  /* Initialize player as Private Citizen */
+  civ_role_init(&game->player_role);
+  civ_role_set(&game->player_role, &civ_role_private_citizen, "none");
+
+  /* Initialize market with all real-world currencies */
+  game->market = civ_market_create();
+  printf("[GAME] %d global currencies active\n",
+         ((civ_market_engine_t *)game->market)->currency_count);
+  civ_market_generate_companies((civ_market_engine_t *)game->market, "Kenya");
+  civ_market_generate_companies((civ_market_engine_t *)game->market, "Global");
+  civ_wallet_init(&game->wallet);
+
   game->state = CIV_GAME_STATE_RUNNING;
   game->is_running = true;
   game->is_paused = false;
@@ -193,6 +207,9 @@ civ_result_t civ_game_end_turn(civ_game_t *game) {
                                 game->nation_manager,
                                 te->global.global_year, te->global.global_day);
   }
+  /* Market fluctuation */
+  if (game->market)
+    civ_market_update((civ_market_engine_t *)game->market);
   printf("[GAME] Advanced to turn %d\n", game->current_turn);
 
   // Reset unit movement

@@ -74,9 +74,26 @@ typedef struct {
   /* Current political position (empty string = private citizen) */
   char             political_position[64];
 
-  /* Relationships — IDs of key connections (future: expand to array) */
-  char             patron_id[32];     /* who sponsors/supports them */
-  char             rival_id[32];      /* who opposes them */
+  /* Deep life state */
+  int32_t          housing_level;   /* 0=homeless,1=shelter,2=renting,3=owning */
+  float            housing_cost;    /* monthly */
+  int32_t          education_level; /* 0=none,1=primary,2=secondary,3=bachelors,4=masters,5=doctorate */
+  float            education_debt;  /* student loans */
+  float            health;          /* 0-100 */
+  float            healthcare_cost; /* monthly */
+  float            savings_balance; /* bank savings with interest */
+  float            loan_balance;    /* outstanding loans */
+  float            loan_rate;       /* interest rate on loans */
+  int32_t          career_rank;     /* 0=entry,1=junior,2=senior,3=lead,4=exec */
+  float            monthly_salary;  /* from current job */
+  float            monthly_expenses;/* total monthly cost */
+  int32_t          relationship_count; /* friends/contacts */
+  char             partner_name[48];
+  bool             has_partner;
+
+  /* Relationships */
+  char             patron_id[32];
+  char             rival_id[32];
 } civ_character_t;
 
 /* ── API ─────────────────────────────────────────────────────────────── */
@@ -90,6 +107,7 @@ const char      *civ_skill_name(civ_skill_t skill);
 
 /* Initialize character skills from background choice */
 void civ_character_apply_background(civ_character_t *c, civ_background_t bg);
+void civ_character_dynamic_title(civ_character_t *c, char *out, size_t size);
 
 #ifdef __cplusplus
 }

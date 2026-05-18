@@ -104,9 +104,29 @@ static void update(civ_game_t *game, civ_input_state_t *input) {
       printf("[IDENTITY] %s, age %d, from %s, %s\n",
              pc->name, age, birthplace, nationality);
     }
-    /* Also store on profile */
-    if (game->current_profile) {
-      /* Could store nationality in avatar_path or spare fields */
+    /* Set nationality + local currency wallet */
+    if (nationality[0]) {
+      civ_role_set(&game->player_role, &civ_role_private_citizen, nationality);
+  if (!game->player_character) { civ_character_t *pc = civ_character_create(game->current_profile?game->current_profile->name:"Citizen"); civ_character_apply_background(pc, CIV_BG_BUREAUCRATIC); game->player_character = pc; }
+      /* Give starting money in local currency */
+      if (game->market) {
+        civ_market_engine_t *mkt = (civ_market_engine_t *)game->market;
+        /* Find currency for this nation */
+        for (int ci = 0; ci < mkt->currency_count; ci++) {
+          if (strcasestr(nationality, mkt->currencies[ci].iso) ||
+              strcasestr(mkt->currencies[ci].name, nationality)) {
+            float local_amt = 500.0f * mkt->currencies[ci].current_rate;
+            civ_wallet_add(&game->wallet, mkt->currencies[ci].iso, local_amt);
+            printf("[IDENTITY] Starting balance: %.0f %s\n",
+                   local_amt, mkt->currencies[ci].iso);
+            break;
+          }
+        }
+        /* Fallback: add USD if no match */
+        if (game->wallet.count == 0)
+          civ_wallet_add(&game->wallet, "USD", 500.0f);
+      }
+      printf("[IDENTITY] Citizen of %s\n", nationality);
     }
     civ_scene_manager_switch(SCENE_GAME);
   }
@@ -257,8 +277,15 @@ static void render_step_review(SDL_Renderer *r, int win_w, int win_h,
   (void)input;
 }
 
+static bool text_started = false;
+static SDL_Window *sdl_win = NULL;
+
 static void render(SDL_Renderer *r, int win_w, int win_h, civ_game_t *game,
                    civ_input_state_t *input) {
+  if (!text_started) {
+    sdl_win = SDL_GetRenderWindow(r);
+    if (sdl_win) { SDL_StartTextInput(sdl_win); text_started = true; }
+  }
   civ_render_rect_filled(r, 0, 0, win_w, win_h, CIV_COLOR_BG_DARK);
 
   /* Progress bar */
@@ -280,6 +307,8 @@ static void render(SDL_Renderer *r, int win_w, int win_h, civ_game_t *game,
 }
 
 static void destroy(void) {
+  if (sdl_win) { SDL_StopTextInput(sdl_win); sdl_win = NULL; }
+  text_started = false;
   if (font_title) civ_font_destroy(font_title), font_title = NULL;
   if (font_body)  civ_font_destroy(font_body),  font_body = NULL;
   if (font_small) civ_font_destroy(font_small), font_small = NULL;

@@ -8,6 +8,8 @@
 
 #include "../common.h"
 #include "../types.h"
+#include "role.h"
+#include "market.h"
 #include "../utils/cache.h"
 #include "../utils/config.h"
 #include "../utils/memory_pool.h"
@@ -169,6 +171,7 @@ typedef struct civ_game {
   civ_player_profile_t  *current_profile;
   void                  *player_character; /* civ_character_t — opaque */
   char                   faction_id[32];
+  civ_player_role_t      player_role;      /* current role + nav */
 
   /* Nations & territories */
   void *nation_manager; /* civ_nation_manager_t — opaque */
@@ -178,6 +181,12 @@ typedef struct civ_game {
 
   /* NPC engine */
   void *npc_engine;     /* civ_npc_engine_t — opaque */
+
+  /* Market engine */
+  void *market;         /* civ_market_engine_t — opaque */
+
+  /* Player wallet */
+  civ_wallet_t wallet;
 } civ_game_t;
 
 /* Function declarations */

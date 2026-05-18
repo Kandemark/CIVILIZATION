@@ -58,6 +58,19 @@ GRAPH_SRCS = \
 ICON_SRCS = \
 	src/ui/icon/icon_atlas.c
 
+# Screen sources
+SCREEN_SRCS = \
+	src/ui/screens/screen_dashboard.c \
+	src/ui/screens/screen_work.c \
+	src/ui/screens/screen_finance.c \
+	src/ui/screens/screen_housing.c \
+	src/ui/screens/screen_education.c \
+	src/ui/screens/screen_network.c \
+	src/ui/screens/screen_politics.c \
+	src/ui/screens/screen_health.c \
+	src/ui/screens/screen_constitution.c \
+	src/ui/screens/screen_economy.c
+
 # Panel sources
 PANEL_SRCS = \
 	src/ui/panel/diplomacy_panel.c \
@@ -156,6 +169,9 @@ CORE_SRCS = \
 	src/core/faction.c \
 	src/core/character.c \
 	src/core/npc_engine.c \
+	src/core/role.c \
+	src/core/constitution.c \
+	src/core/market.c \
 	src/core/time_engine.c \
 	src/core/knowledge_system.c
 
@@ -173,7 +189,7 @@ VISUAL_SRCS = \
 	src/core/visuals/vexillology.c
 
 # All sources
-SRCS = $(ENGINE_SRCS) $(DISPLAY_SRCS) $(UI_SRCS) $(WIDGET_SRCS) $(LAYOUT_SRCS) $(GRAPH_SRCS) $(ICON_SRCS) $(PANEL_SRCS) $(CORE_SRCS) $(UTILS_SRCS) $(VISUAL_SRCS)
+SRCS = $(ENGINE_SRCS) $(DISPLAY_SRCS) $(UI_SRCS) $(WIDGET_SRCS) $(LAYOUT_SRCS) $(GRAPH_SRCS) $(ICON_SRCS) $(SCREEN_SRCS) $(PANEL_SRCS) $(CORE_SRCS) $(UTILS_SRCS) $(VISUAL_SRCS)
 
 # Object files
 OBJS = $(patsubst src/%.c,$(OBJ_DIR)/%.o,$(SRCS))

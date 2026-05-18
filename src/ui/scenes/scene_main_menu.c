@@ -73,7 +73,7 @@ static void update(civ_game_t *game, civ_input_state_t *input) {
     civ_scene_manager_switch(SCENE_GAME);
 
   if (civ_widget_button_was_clicked(btn_new_game))
-    civ_scene_manager_switch(SCENE_SETUP);
+    civ_scene_manager_switch(SCENE_IDENTITY);
 
   if (civ_widget_button_was_clicked(btn_load_game) && game->current_profile) {
     char **slots = NULL;
