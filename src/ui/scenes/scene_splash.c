@@ -24,7 +24,7 @@ static void render(SDL_Renderer *r, int win_w, int win_h,
   float alpha = splash_timer / 1.5f; if (alpha > 1.0f) alpha = 1.0f;
 
   if (nk_begin(nk, "Splash", nk_rect(100, 100, 400, 300),
-               NK_WINDOW_BORDER|NK_WINDOW_TITLE)) {
+               NK_WINDOW_TITLE)) {
     nk_layout_row_dynamic(nk, 40, 1);
     nk_label(nk, "DOMINION", NK_TEXT_CENTERED);
     nk_layout_row_dynamic(nk, 20, 1);

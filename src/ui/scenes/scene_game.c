@@ -913,7 +913,7 @@ static void render(SDL_Renderer *renderer, int win_w, int win_h,
 
       /* Top bar */
       if (nk_begin(nk, "HUD", nk_rect(0, 0, (float)win_w, 32),
-                   NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER)) {
+                   NK_WINDOW_NO_SCROLLBAR)) {
         nk_layout_row_dynamic(nk, 32, 4);
         char time_buf[64];
         if (game->time_engine)
@@ -933,7 +933,7 @@ static void render(SDL_Renderer *renderer, int win_w, int win_h,
 
       /* Left sidebar */
       if (nk_begin(nk, "Nav", nk_rect(0, 32, 220, (float)win_h - 32),
-                   NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER)) {
+                   NK_WINDOW_NO_SCROLLBAR)) {
         nk_layout_row_dynamic(nk, 22, 1);
         nk_label(nk, "DOMINION", NK_TEXT_CENTERED);
         int nav_n = game->player_role.nav_count;
@@ -974,7 +974,7 @@ static void render(SDL_Renderer *renderer, int win_w, int win_h,
         civ_nation_t *nat = civ_nation_get_by_id(
             (civ_nation_manager_t*)game->nation_manager, selected_nation_id);
         if (nat && nk_begin(nk, nat->name, nk_rect(240, 40, 360, 320),
-                 NK_WINDOW_BORDER|NK_WINDOW_TITLE|NK_WINDOW_MOVABLE|NK_WINDOW_CLOSABLE)) {
+                 NK_WINDOW_TITLE|NK_WINDOW_CLOSABLE|NK_WINDOW_MOVABLE|NK_WINDOW_CLOSABLE)) {
           nk_layout_row_dynamic(nk, 18, 1);
           { char buf[128]; snprintf(buf, sizeof(buf), "Pop: %lldM  GDP: $%.0fM  +%.1f%%",
               nat->population/1000000, nat->economy.gdp, nat->economy.gdp_growth*100);
@@ -1017,7 +1017,7 @@ static void render(SDL_Renderer *renderer, int win_w, int win_h,
                               "POLITICS","HEALTH","CONSTITUTION"};
       const char *title = (current_screen >= 0 && current_screen < 16) ? titles[current_screen - 1] : "SCREEN";
       if (nk_begin(nk, title, nk_rect(230, 34, (float)win_w - 250, (float)win_h - 80),
-                   NK_WINDOW_BORDER|NK_WINDOW_TITLE)) {
+                   NK_WINDOW_TITLE|NK_WINDOW_CLOSABLE)) {
         nk_layout_row_dynamic(nk, 20, 1);
 
         /* Technology screen */

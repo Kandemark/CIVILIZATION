@@ -34,7 +34,7 @@ static void render(SDL_Renderer *r, int win_w, int win_h,
   float px = ((float)win_w - pw) / 2, py = ((float)win_h - ph) / 2;
 
   if (nk_begin(nk, "Select Profile", nk_rect(px, py, pw, ph),
-               NK_WINDOW_BORDER|NK_WINDOW_TITLE)) {
+               NK_WINDOW_TITLE)) {
     nk_layout_row_dynamic(nk, 28, 1);
     nk_label(nk, "IDENTIFY OPERATOR", NK_TEXT_CENTERED);
     nk_layout_row_dynamic(nk, 16, 1);

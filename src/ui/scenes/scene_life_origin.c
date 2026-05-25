@@ -100,7 +100,7 @@ static void render(SDL_Renderer *r, int win_w, int win_h,
   if (result_bg < 0) {
     /* Question panel */
     float pw = (float)win_w - 80, ph = 280, px = 40, py = (float)win_h - ph - 40;
-    if (nk_begin(nk, "Assessment", nk_rect(px, py, pw, ph), NK_WINDOW_BORDER|NK_WINDOW_TITLE)) {
+    if (nk_begin(nk, "Assessment", nk_rect(px, py, pw, ph), NK_WINDOW_TITLE)) {
       char buf[64];
       snprintf(buf, sizeof(buf), "Question %d of 4", question_idx + 1);
       nk_layout_row_dynamic(nk, 22, 1);
@@ -124,7 +124,7 @@ static void render(SDL_Renderer *r, int win_w, int win_h,
   } else {
     /* Result */
     if (nk_begin(nk, "Result", nk_rect((float)(win_w-300)/2, (float)(win_h-180)/2, 300, 180),
-                 NK_WINDOW_BORDER|NK_WINDOW_TITLE)) {
+                 NK_WINDOW_TITLE)) {
       nk_layout_row_dynamic(nk, 28, 1);
       nk_label(nk, "YOUR ORIGIN", NK_TEXT_CENTERED);
       nk_layout_row_dynamic(nk, 32, 1);

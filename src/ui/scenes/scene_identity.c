@@ -88,7 +88,7 @@ static void render(SDL_Renderer *r, int win_w, int win_h,
   char title[32];
   snprintf(title, sizeof(title), "Identity — Step %d/4", step + 1);
 
-  if (nk_begin(nk, title, nk_rect(px, py, pw, ph), NK_WINDOW_BORDER|NK_WINDOW_TITLE)) {
+  if (nk_begin(nk, title, nk_rect(px, py, pw, ph), NK_WINDOW_TITLE)) {
     nk_layout_row_dynamic(nk, 6, 1);
     /* Progress */
     nk_layout_row_dynamic(nk, 4, 1);

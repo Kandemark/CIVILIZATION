@@ -28,7 +28,7 @@ static void save_picker_render(SDL_Renderer *r, int wx, int wy,
   if (!g_nk_ctx) return;
   struct nk_context *nk = g_nk_ctx;
   if (nk_begin(nk, "Load Game", nk_rect((float)wx, (float)wy, (float)ww, (float)wh),
-               NK_WINDOW_BORDER|NK_WINDOW_TITLE|NK_WINDOW_MOVABLE|NK_WINDOW_CLOSABLE)) {
+               NK_WINDOW_TITLE|NK_WINDOW_MOVABLE|NK_WINDOW_CLOSABLE)) {
     nk_layout_row_dynamic(nk, 22, 1);
     if (save_slot_count == 0)
       nk_label(nk, "No save files found.", NK_TEXT_LEFT);
