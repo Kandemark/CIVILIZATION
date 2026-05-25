@@ -901,7 +901,7 @@ static void render(SDL_Renderer *renderer, int win_w, int win_h,
 
   } /* end MAP screen block */
 
-  /* ── Nuklear shared UI (all screens) ──────────────────────── */
+  /* ── Nuklear unified UI — single full-screen container ───────── */
   {
     struct nk_context *nk = g_nk_ctx;
     if (nk) {
@@ -910,80 +910,127 @@ static void render(SDL_Renderer *renderer, int win_w, int win_h,
       float lat = 90.0f - (cam.y / (float)cam.map_height) * 180.0f;
       float lon = (cam.x / (float)cam.map_width) * 360.0f - 180.0f;
       while (lon < -180.0f) lon += 360.0f; while (lon > 180.0f) lon -= 360.0f;
+      float ww = (float)win_w, wh = (float)win_h;
 
-      /* Top bar */
-      if (nk_begin(nk, "HUD", nk_rect(0, 0, (float)win_w, 32),
+      if (nk_begin(nk, "Dominion", nk_rect(0, 0, ww, wh),
                    NK_WINDOW_NO_SCROLLBAR)) {
-        nk_layout_row_dynamic(nk, 32, 4);
-        char time_buf[64];
-        if (game->time_engine)
-          civ_time_engine_format_hud((civ_time_engine_t*)game->time_engine, time_buf, sizeof(time_buf));
-        else snprintf(time_buf, sizeof(time_buf), "Turn %d", game->current_turn);
-        nk_label(nk, time_buf, NK_TEXT_CENTERED);
-        const char *vnames[] = {"Political","Geographical","Economic","Demographical","Cultural"};
-        if (nk_button_label(nk, vnames[(int)current_map_view]))
-          current_map_view = (civ_map_view_type_t)(((int)current_map_view + 1) % 5);
-        char coord_buf[64];
-        snprintf(coord_buf, sizeof(coord_buf), "$%.0f  %.0f%c %.0f%c",
-            bal, fabsf(lat), lat>=0?'N':'S', fabsf(lon), lon>=0?'E':'W');
-        nk_label(nk, coord_buf, NK_TEXT_RIGHT);
+
+        /* === TOP BAR (h=30) ====================================== */
+        nk_layout_row_begin(nk, NK_STATIC, 30, 4);
+        nk_layout_row_push(nk, 260);
+        {
+          char time_buf[64];
+          if (game->time_engine)
+            civ_time_engine_format_hud((civ_time_engine_t*)game->time_engine, time_buf, sizeof(time_buf));
+          else snprintf(time_buf, sizeof(time_buf), "Turn %d", game->current_turn);
+          nk_label(nk, time_buf, NK_TEXT_LEFT);
+        }
+        nk_layout_row_push(nk, 150);
+        {
+          const char *vnames[] = {"Political","Geographical","Economic","Demographical","Cultural"};
+          if (nk_button_label(nk, vnames[(int)current_map_view]))
+            current_map_view = (civ_map_view_type_t)(((int)current_map_view + 1) % 5);
+        }
+        nk_layout_row_push(nk, ww - 420);
         nk_spacing(nk, 1);
-      }
-      nk_end(nk);
+        nk_layout_row_push(nk, 240);
+        {
+          char coord_buf[64];
+          snprintf(coord_buf, sizeof(coord_buf), "$%.0f  %.0f%c %.0f%c",
+              bal, fabsf(lat), lat>=0?'N':'S', fabsf(lon), lon>=0?'E':'W');
+          nk_label(nk, coord_buf, NK_TEXT_RIGHT);
+        }
+        nk_layout_row_end(nk);
 
-      /* Left sidebar */
-      if (nk_begin(nk, "Nav", nk_rect(0, 32, 220, (float)win_h - 32),
-                   NK_WINDOW_NO_SCROLLBAR)) {
-        nk_layout_row_dynamic(nk, 22, 1);
-        nk_label(nk, "DOMINION", NK_TEXT_CENTERED);
-        int nav_n = game->player_role.nav_count;
-        for (int i = 0; i < nav_n && i < 14; i++) {
-          civ_nav_screen_t ns = (civ_nav_screen_t)game->player_role.nav_screens[i];
-          if (ns < 0) continue;
-          nk_layout_row_dynamic(nk, 24, 1);
-          bool active = (ns == CIV_NAV_MAP && current_screen == SCR_MAP) ||
-              (ns == CIV_NAV_ECONOMY && current_screen == SCR_ECONOMY) ||
-              (ns == CIV_NAV_GOVERNANCE && current_screen == SCR_GOVERNANCE) ||
-              (ns == CIV_NAV_DIPLOMACY && current_screen == SCR_DIPLOMACY) ||
-              (ns == CIV_NAV_DASHBOARD && current_screen == SCR_DASHBOARD);
-          if (active) nk_button_set_behavior(nk, NK_BUTTON_DEFAULT);
-          if (nk_button_label(nk, civ_nav_screen_label(ns))) {
-            switch (ns) {
-            case CIV_NAV_MAP: current_screen = SCR_MAP; break;
-            case CIV_NAV_ECONOMY: current_screen = SCR_ECONOMY; break;
-            case CIV_NAV_GOVERNANCE: current_screen = SCR_GOVERNANCE; break;
-            case CIV_NAV_DIPLOMACY: current_screen = SCR_DIPLOMACY; break;
-            case CIV_NAV_DASHBOARD: current_screen = SCR_DASHBOARD; break;
-            case CIV_NAV_WORK: current_screen = SCR_WORK; break;
-            case CIV_NAV_FINANCE: current_screen = SCR_FINANCE; break;
-            case CIV_NAV_HOUSING: current_screen = SCR_HOUSING; break;
-            case CIV_NAV_EDUCATION: current_screen = SCR_EDUCATION; break;
-            default: current_screen = SCR_DASHBOARD; break;
+        /* === SEPARATOR =========================================== */
+        nk_layout_row_dynamic(nk, 2, 1);
+
+        /* === BODY: sidebar + content ============================= */
+        float body_h = wh - 34;
+        nk_layout_row_begin(nk, NK_STATIC, body_h, 3);
+        nk_layout_row_push(nk, 4);
+        nk_spacing(nk, 1);
+
+        nk_layout_row_push(nk, 216);
+        {
+          if (nk_group_begin(nk, "Sidebar", NK_WINDOW_NO_SCROLLBAR)) {
+            nk_layout_row_dynamic(nk, 22, 1);
+            nk_label(nk, "DOMINION", NK_TEXT_CENTERED);
+            int nav_n = game->player_role.nav_count;
+            for (int i = 0; i < nav_n && i < 14; i++) {
+              civ_nav_screen_t ns = (civ_nav_screen_t)game->player_role.nav_screens[i];
+              if (ns < 0) continue;
+              nk_layout_row_dynamic(nk, 22, 1);
+              if (nk_button_label(nk, civ_nav_screen_label(ns))) {
+                switch (ns) {
+                case CIV_NAV_MAP: current_screen = SCR_MAP; break;
+                case CIV_NAV_ECONOMY: current_screen = SCR_ECONOMY; break;
+                case CIV_NAV_GOVERNANCE: current_screen = SCR_GOVERNANCE; break;
+                case CIV_NAV_DIPLOMACY: current_screen = SCR_DIPLOMACY; break;
+                case CIV_NAV_DASHBOARD: current_screen = SCR_DASHBOARD; break;
+                case CIV_NAV_WORK: current_screen = SCR_WORK; break;
+                case CIV_NAV_FINANCE: current_screen = SCR_FINANCE; break;
+                case CIV_NAV_HOUSING: current_screen = SCR_HOUSING; break;
+                case CIV_NAV_EDUCATION: current_screen = SCR_EDUCATION; break;
+                default: current_screen = SCR_DASHBOARD; break;
+                }
+              }
+            }
+            nk_layout_row_dynamic(nk, 18, 1);
+            { char wbuf[48]; snprintf(wbuf, sizeof(wbuf), "Balance: $%.0f", bal);
+              nk_label(nk, wbuf, NK_TEXT_CENTERED); }
+            nk_group_end(nk);
+          }
+        }
+
+        nk_layout_row_push(nk, ww - 224);
+        {
+          if (current_screen != SCR_MAP) {
+            nk_layout_row_dynamic(nk, 18, 1);
+            if (current_screen == SCR_TECHNOLOGY && game->technology_tree) {
+              civ_innovation_system_t *is = game->technology_tree;
+              for (int d = 0; d < CIV_TECH_DOMAIN_COUNT; d++) {
+                char buf[128];
+                snprintf(buf, sizeof(buf), "%-34s %+d (+%.1f/t)", is->domains[d].name, is->domains[d].index, is->domains[d].growth_rate);
+                nk_layout_row_dynamic(nk, 20, 1);
+                nk_label(nk, buf, NK_TEXT_LEFT);
+              }
+            } else if (current_screen == SCR_GOVERNANCE) {
+              civ_government_t *gov = game->government;
+              if (selected_nation_cid >= 0 && game->nation_manager) {
+                civ_nation_t *nat = civ_nation_get_by_id((civ_nation_manager_t*)game->nation_manager, selected_nation_id);
+                if (nat && nat->government) gov = nat->government;
+              }
+              char buf[256];
+              snprintf(buf, sizeof(buf), "Stability: %.0f%%  Legitimacy: %.0f%%  Efficiency: %.0f%%  Happiness: %.0f%%",
+                  gov->stability*100, gov->legitimacy*100, gov->efficiency*100, gov->profile.citizen_happiness*100);
+              nk_layout_row_dynamic(nk, 20, 1); nk_label(nk, buf, NK_TEXT_LEFT);
+              for (size_t i = 0; i < gov->position_count && i < 20; i++) {
+                snprintf(buf, sizeof(buf), "%s — %s · %s · %d seats", gov->positions[i].title,
+                    gov->positions[i].selection_method, gov->positions[i].term, gov->positions[i].position_count);
+                nk_layout_row_dynamic(nk, 16, 1); nk_label(nk, buf, NK_TEXT_LEFT);
+              }
+            } else {
+              nk_label(nk, "Screen under development", NK_TEXT_CENTERED);
             }
           }
-          if (active) nk_button_set_behavior(nk, NK_BUTTON_DEFAULT);
         }
-        nk_layout_row_dynamic(nk, 18, 1);
-        { char wbuf[48]; snprintf(wbuf, sizeof(wbuf), "Balance: $%.0f", bal);
-          nk_label(nk, wbuf, NK_TEXT_CENTERED); }
+        nk_layout_row_end(nk);
       }
       nk_end(nk);
 
-      /* Nation detail popup */
+      /* ── Popups (separate windows over the main container) ────── */
       if (show_nation_detail && selected_nation_id[0] && game->nation_manager) {
         civ_nation_t *nat = civ_nation_get_by_id(
             (civ_nation_manager_t*)game->nation_manager, selected_nation_id);
-        if (nat && nk_begin(nk, nat->name, nk_rect(240, 40, 360, 320),
-                 NK_WINDOW_TITLE|NK_WINDOW_CLOSABLE|NK_WINDOW_MOVABLE|NK_WINDOW_CLOSABLE)) {
+        if (nat && nk_begin(nk, nat->name, nk_rect(240, 40, 360, 300),
+                 NK_WINDOW_TITLE|NK_WINDOW_MOVABLE|NK_WINDOW_CLOSABLE)) {
           nk_layout_row_dynamic(nk, 18, 1);
           { char buf[128]; snprintf(buf, sizeof(buf), "Pop: %lldM  GDP: $%.0fM  +%.1f%%",
               nat->population/1000000, nat->economy.gdp, nat->economy.gdp_growth*100);
             nk_label(nk, buf, NK_TEXT_LEFT); }
           { char buf[128]; snprintf(buf, sizeof(buf), "Unemp: %.1f%%  Infl: %.1f%%  Food: %.0fM",
               nat->economy.unemployment*100, nat->economy.inflation*100, nat->economy.food_production/1000000);
-            nk_label(nk, buf, NK_TEXT_LEFT); }
-          { char buf[128]; snprintf(buf, sizeof(buf), "Gov: %s  ISO: %s",
-              civ_government_proximity_label(nat->government), nat->iso_a3);
             nk_label(nk, buf, NK_TEXT_LEFT); }
           { char buf[128]; snprintf(buf, sizeof(buf), "Indices: T%+d E%+d M%+d C%+d",
               nat->tech_index, nat->economic_index, nat->military_index, nat->cultural_index);
@@ -998,118 +1045,13 @@ static void render(SDL_Renderer *renderer, int win_w, int win_h,
 
       /* Toasts */
       for (int i = toast_count - 1; i >= 0; i--) {
-        if (nk_begin(nk, "T", nk_rect((float)(win_w/2-200), (float)(win_h-80-i*34), 400, 26),
+        if (nk_begin(nk, "T", nk_rect(ww/2-200, wh-80-(float)i*34, 400, 26),
                      NK_WINDOW_NO_SCROLLBAR)) {
           nk_layout_row_dynamic(nk, 20, 1);
           nk_label(nk, toasts[i].msg, NK_TEXT_CENTERED);
         }
         nk_end(nk);
       }
-    }
-  }
-
-  /* ── Nuklear data screens (non-MAP) ───────────────────────── */
-  if (current_screen != SCR_MAP) {
-    struct nk_context *nk = g_nk_ctx;
-    if (nk) {
-      const char *titles[] = {"DIPLOMACY","ECONOMY","MILITARY","TECHNOLOGY","GOVERNANCE","CULTURE",
-                              "NEWS","DASHBOARD","WORK","FINANCE","HOUSING","EDUCATION","NETWORK",
-                              "POLITICS","HEALTH","CONSTITUTION"};
-      const char *title = (current_screen >= 0 && current_screen < 16) ? titles[current_screen - 1] : "SCREEN";
-      if (nk_begin(nk, title, nk_rect(230, 34, (float)win_w - 250, (float)win_h - 80),
-                   NK_WINDOW_TITLE|NK_WINDOW_CLOSABLE)) {
-        nk_layout_row_dynamic(nk, 20, 1);
-
-        /* Technology screen */
-        if (current_screen == SCR_TECHNOLOGY && game->technology_tree) {
-          civ_innovation_system_t *is = game->technology_tree;
-          for (int d = 0; d < CIV_TECH_DOMAIN_COUNT; d++) {
-            char buf[128];
-            snprintf(buf, sizeof(buf), "%-34s %+d (+%.1f/t)", is->domains[d].name, is->domains[d].index, is->domains[d].growth_rate);
-            nk_label(nk, buf, NK_TEXT_LEFT);
-          }
-        }
-        /* Governance screen */
-        else if (current_screen == SCR_GOVERNANCE) {
-          civ_government_t *gov = game->government;
-          const char *gov_title = "YOUR GOVERNMENT";
-          if (selected_nation_cid >= 0 && game->nation_manager) {
-            civ_nation_t *nat = civ_nation_get_by_id((civ_nation_manager_t*)game->nation_manager, selected_nation_id);
-            if (nat && nat->government) { gov = nat->government; gov_title = nat->name; }
-          }
-          char buf[256];
-          snprintf(buf, sizeof(buf), "%s — %s", gov_title, civ_government_proximity_label(gov));
-          nk_label(nk, buf, NK_TEXT_LEFT);
-          snprintf(buf, sizeof(buf), "Stability: %.0f%%  Legitimacy: %.0f%%  Efficiency: %.0f%%  Happiness: %.0f%%",
-              gov->stability*100, gov->legitimacy*100, gov->efficiency*100, gov->profile.citizen_happiness*100);
-          nk_label(nk, buf, NK_TEXT_LEFT);
-          snprintf(buf, sizeof(buf), "Auth: %.0f%%  Rep: %.0f%%  Rigidity: %.0f%%  Ranking: %.0f",
-              gov->profile.authority_concentration*100, gov->profile.representation_index*100,
-              gov->profile.institutional_rigidity*100, gov->profile.governance_ranking);
-          nk_label(nk, buf, NK_TEXT_LEFT);
-          nk_label(nk, "POLITICAL POSITIONS:", NK_TEXT_LEFT);
-          for (size_t i = 0; i < gov->position_count && i < 20; i++) {
-            snprintf(buf, sizeof(buf), "%s — %s · %s · %d seats", gov->positions[i].title,
-                gov->positions[i].selection_method, gov->positions[i].term, gov->positions[i].position_count);
-            nk_label(nk, buf, NK_TEXT_LEFT);
-          }
-        }
-        /* Economy screen */
-        else if (current_screen == SCR_ECONOMY) {
-          if (game->market) {
-            civ_market_engine_t *mkt = game->market;
-            char buf[192];
-            float avg_inf = 0; for (int i=0; i<5 && i<mkt->currency_count; i++) avg_inf+=mkt->currencies[i].inflation; avg_inf/=5;
-            snprintf(buf, sizeof(buf), "Inflation: %.1f%%  |  Commodities: %d  |  Currencies: %d",
-                avg_inf*100, mkt->commodity_count, mkt->currency_count);
-            nk_label(nk, buf, NK_TEXT_LEFT);
-            nk_label(nk, "FOREX:", NK_TEXT_LEFT);
-            for (int ci=0; ci<10 && ci<mkt->currency_count; ci++) {
-              snprintf(buf, sizeof(buf), "%-4s %10.4f %+6.1f%% %s",
-                  mkt->currencies[ci].iso, mkt->currencies[ci].current_rate,
-                  (mkt->currencies[ci].current_rate/mkt->currencies[ci].base_rate-1)*100,
-                  mkt->currencies[ci].name);
-              nk_label(nk, buf, NK_TEXT_LEFT);
-            }
-          }
-        }
-        /* News screen */
-        else if (current_screen == SCR_NEWS) {
-          if (game->npc_engine) {
-            civ_npc_engine_t *ne = (civ_npc_engine_t*)game->npc_engine;
-            civ_decision_t decisions[12];
-            int nd = civ_npc_engine_get_recent(ne, 12, decisions);
-            if (nd == 0) nk_label(nk, "No news yet.", NK_TEXT_LEFT);
-            for (int i = 0; i < nd; i++) {
-              char buf[256]; const char *cats[] = {"[MIL]","[ECO]","[POL]","[SOC]","[DIP]"};
-              snprintf(buf, sizeof(buf), "%s %s — %s", cats[decisions[i].category%5], decisions[i].description, decisions[i].nation_id);
-              nk_label(nk, buf, NK_TEXT_LEFT);
-            }
-          }
-        }
-        /* Delegated screens */
-        else if (current_screen == SCR_DASHBOARD)
-          civ_screen_dashboard_render(renderer, game, font_hud, 0,0,0,0,0, input, local_cur, local_sym);
-        else if (current_screen == SCR_WORK)
-          civ_screen_work_render(renderer, game, font_hud, 0,0,0,0,0, input, local_cur, local_sym);
-        else if (current_screen == SCR_FINANCE)
-          civ_screen_finance_render(renderer, game, font_hud, 0,0,0,0,0, input, local_cur, local_sym);
-        else if (current_screen == SCR_HOUSING)
-          civ_screen_housing_render(renderer, game, font_hud, 0,0,0,0,0, input, local_cur, local_sym);
-        else if (current_screen == SCR_EDUCATION)
-          civ_screen_education_render(renderer, game, font_hud, 0,0,0,0,0, input, local_cur, local_sym);
-        else if (current_screen == SCR_NETWORK)
-          civ_screen_network_render(renderer, game, font_hud, 0,0,0,0,0, input, local_cur, local_sym);
-        else if (current_screen == SCR_POLITICS)
-          civ_screen_politics_render(renderer, game, font_hud, 0,0,0,0,0, input, local_cur, local_sym);
-        else if (current_screen == SCR_HEALTH)
-          civ_screen_health_render(renderer, game, font_hud, 0,0,0,0,0, input, local_cur, local_sym);
-        else if (current_screen == SCR_CONSTITUTION)
-          civ_screen_constitution_render(renderer, game, font_hud, 0,0,0,0,0, input, local_cur, local_sym);
-        else
-          nk_label(nk, "Screen under development", NK_TEXT_CENTERED);
-      }
-      nk_end(nk);
     }
   }
 
